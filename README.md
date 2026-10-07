@@ -89,16 +89,17 @@ Answers produced by the relay itself carry `x-rof-source: rof-relay`, so the pag
 Relay safety: it listens on loopback by default, refuses cross-origin and DNS-rebinding requests, blocks private targets unless allowed, strips cookies/HSTS
 from answers, and logs only `METHOD host/path → status` — never keys, bodies or query strings. Do not expose it publicly without `RELAY_TOKEN` (it refuses to start that way).
 
-## The genuine reference (LUNA 6.0)
+## The genuine reference (per model)
 
-The left pane shows the best HTML from three genuine runs of **LUNA 6.0** (`openai/gpt-6-luna`) — the run that passed every automatic check and looks right. Everything else
-stays in the background and is never displayed: `<script type="application/json" id="rof-reference-pool">` holds **every run and every round**, including the ones that failed
-the automatic checks, with the HTML, the checks, the measurements and the token usage (input / output / reasoning). It exists so thinking budget and code can be compared
-across all genuine runs: a genuine model sometimes produces a page that fails the checks, and a page that passes proves nothing by itself.
+The left pane shows the genuine sample of **the model you selected**. Samples live in `<script type="application/json" id="rof-reference-pool">` (schema `rof-reference-pool/2`):
+one entry per model, each with a `match` list of regular expressions tested against the Model field. Today there is one entry, **LUNA 6.0** (`openai/gpt-6-luna`, three genuine runs);
+for any other model the pane says **"No comparison sample yet"**.
 
-To use another model's samples, replace the contents of `#rof-reference-html` (the page that is shown — paste it raw, write `<\/script>` if it contains `</script>`) and
-`#rof-reference-pool` (schema `rof-reference-pool/1`). The "Placeholder sample" badge appears only while the `ROF-PLACEHOLDER` marker is present.
-You can also try a file without editing the source via **Load reference file** (kept in memory only; the pool is untouched).
+Only the `displayed` round of an entry is shown (the best one: passes every check and renders correctly). Every other run and round — including the ones that failed the automatic
+checks — stays in the background, never displayed, with the HTML, checks, measurements and token usage (input / output / reasoning), so thinking budget and code can be compared
+across genuine runs. A genuine model sometimes fails the checks, and a page that passes proves nothing by itself; a handful of samples per model is too few to judge from (aim for ~10).
+
+To add a model, append an entry to `entries`. *Load reference file* replaces the pane temporarily (memory only) until the model changes.
 
 ## Notes
 
