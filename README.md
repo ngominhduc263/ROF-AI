@@ -89,17 +89,16 @@ Answers produced by the relay itself carry `x-rof-source: rof-relay`, so the pag
 Relay safety: it listens on loopback by default, refuses cross-origin and DNS-rebinding requests, blocks private targets unless allowed, strips cookies/HSTS
 from answers, and logs only `METHOD host/path → status` — never keys, bodies or query strings. Do not expose it publicly without `RELAY_TOKEN` (it refuses to start that way).
 
-## Adding the genuine reference file
+## The genuine reference (LUNA 6.0)
 
-The left pane currently shows a **placeholder sample**. To use the real model's file, open `index.html`, find
+The left pane shows the best HTML from three genuine runs of **LUNA 6.0** (`openai/gpt-6-luna`) — the run that passed every automatic check and looks right. Everything else
+stays in the background and is never displayed: `<script type="application/json" id="rof-reference-pool">` holds **every run and every round**, including the ones that failed
+the automatic checks, with the HTML, the checks, the measurements and the token usage (input / output / reasoning). It exists so thinking budget and code can be compared
+across all genuine runs: a genuine model sometimes produces a page that fails the checks, and a page that passes proves nothing by itself.
 
-```html
-<script type="text/plain" id="rof-reference-html">
-```
-
-and replace everything between that tag and its closing `</script>` with the genuine HTML (paste it raw; write `<\/script>`
-if the file itself contains `</script>`). The "Placeholder sample" badge disappears automatically.
-You can also try a file without editing the source via the **Load reference file** button (kept in memory only).
+To use another model's samples, replace the contents of `#rof-reference-html` (the page that is shown — paste it raw, write `<\/script>` if it contains `</script>`) and
+`#rof-reference-pool` (schema `rof-reference-pool/1`). The "Placeholder sample" badge appears only while the `ROF-PLACEHOLDER` marker is present.
+You can also try a file without editing the source via **Load reference file** (kept in memory only; the pool is untouched).
 
 ## Notes
 
