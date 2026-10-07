@@ -138,6 +138,10 @@ select.input option{background:var(--bg-2);color:var(--text)}
 .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:10px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;font-size:18px}
 .eye:hover{background:var(--surface-2);color:var(--text)}
 #key{padding-right:46px}
+.urlprev{margin:8px 2px 0;font:12px/1.6 var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.urlprev:empty{display:none}
+.urlprev i{font-style:normal;color:var(--muted);font-weight:600}
+.urlprev b{color:var(--ok-text);font-weight:600}
 .hint{display:flex;gap:8px;align-items:flex-start;margin:8px 2px 0;font-size:12.5px;color:var(--faint);line-height:1.45}
 .hint svg{margin-top:2px;color:var(--ok-text)}
 details.adv{margin-top:18px;border:1px dashed var(--line-2);border-radius:14px;padding:0 16px}
@@ -340,6 +344,7 @@ footer b{color:var(--muted);font-family:var(--display)}
       <div class="field c8">
         <label for="base"><span data-i18n="f.base"></span><em data-i18n="f.baseHint"></em></label>
         <input class="input mono" id="base" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://api.openai.com/v1">
+        <div class="urlprev" id="urlPreview" aria-live="polite"></div>
       </div>
       <div class="field c4">
         <label for="proto"><span data-i18n="f.proto"></span></label>
@@ -754,7 +759,7 @@ en: {
  'trust.key':'API key is never stored','trust.local':'Runs 100% in your browser','trust.proto':'OpenAI · Anthropic · Gemini compatible',
  'conn.title':'Connect','conn.sub':'Pick a provider or paste any endpoint and API key.',
  'conn.idle':'Not connected','conn.checking':'Checking…','conn.ok':'Connected · {ms}','conn.fail':'Failed',
- 'f.base':'API base URL','f.baseHint':'we add /chat/completions for you','f.proto':'API format',
+ 'f.base':'API base URL','f.baseHint':'only the method path is appended — nothing else','f.chatCall':'Chat','f.modelsCall':'Model list','f.proto':'API format',
  'f.key':'API key','f.keyHint':'memory only','f.keyNote':'Never saved or logged. It is sent only to the endpoint above — use a disposable, low-quota key.',
  'f.model':'Model',
  'proto.auto':'Auto-detect','proto.openai':'OpenAI-compatible (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
@@ -805,9 +810,8 @@ en: {
  'f.latency':'Latency','f.respModel':'Response model','f.respId':'Response ID','f.protocol':'Format','f.host':'Host','f.reply':'Reply','f.requested':'Requested','f.reported':'Reported','f.claimed':'Claimed vendor','f.expectedV':'Expected vendor','f.rawAnswer':'Raw answer',
  'f.inTok':'Input tokens','f.outTok':'Output tokens','f.baseline':'Baseline input','f.big':'Big prompt input','f.delta':'Delta','f.expected':'Expected','f.ratio':'Ratio','f.finish':'Finish reason','f.limit':'Limit','f.chars':'Characters','f.sent':'Sent','f.received':'Received',
  'f.found':'Secrets found','f.events':'Stream events','f.ttfb':'First byte','f.spread':'Time spread','f.ctype':'Content-type','f.term':'Terminator','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'User message','f.answers':'Answers','f.score':'Score','f.yes':'yes','f.no':'no','f.unknown':'unknown',
- 'err.network':'Network error — the browser couldn’t reach the endpoint. Usual causes: the server doesn’t allow browser (CORS) requests (try a CORS proxy under Advanced), a wrong URL, or http on an https page.',
- 'err.cors':'The server answered, but the browser refused to hand over the response. Either it sends no CORS headers for browser calls, or the path is wrong (a 404 without CORS headers looks identical). Tried: {url}',
- 'err.unreach':'Can’t reach {host} at all. If you’re viewing this page inside a preview pane or sandbox, open the file in a normal browser tab — those panes block outside requests. Otherwise check the domain, TLS certificate and your network. Tried: {url}',
+ 'err.network':'The browser got no readable response from {url}. Likely causes: the server doesn’t allow browser (CORS) calls — a firewall or Cloudflare challenge answering 403 looks identical —, a wrong URL, TLS/network trouble, or this page sits in a preview pane that blocks outside requests (open the file in a normal browser tab).',
+ 'err.cors':'The server answered, but the browser refused to hand over the response: it sends no CORS headers for browser calls (a firewall/Cloudflare 403 or a 404 without CORS headers looks the same), or the URL is wrong. Tried: {url}',
  'err.timeout':'Timed out after {s}s with no data.','err.stopped':'Stopped by you.','err.config':'{msg}',
  'err.401':'Unauthorized — check the API key and auth header.','err.403':'Forbidden — the key lacks access, or the provider blocks browser requests.','err.404':'Not found — check the base URL and model name.','err.429':'Rate limited or out of quota.',
  'val.base':'Enter the API base URL first.','val.model':'Enter a model name (or fetch the list).','val.headers':'Extra headers must be valid JSON, e.g. {"X-Foo":"bar"}.','val.url':'That doesn’t look like a valid URL.','val.proxy':'The CORS proxy must be a full URL, e.g. https://proxy.example.com/',
@@ -830,7 +834,7 @@ vi: {
  'trust.key':'Không bao giờ lưu API key','trust.local':'Chạy 100% trên trình duyệt','trust.proto':'Tương thích OpenAI · Anthropic · Gemini',
  'conn.title':'Kết nối','conn.sub':'Chọn nhà cung cấp hoặc dán endpoint và API key bất kỳ.',
  'conn.idle':'Chưa kết nối','conn.checking':'Đang kiểm tra…','conn.ok':'Đã kết nối · {ms}','conn.fail':'Thất bại',
- 'f.base':'API base URL','f.baseHint':'tự thêm /chat/completions','f.proto':'Định dạng API',
+ 'f.base':'API base URL','f.baseHint':'chỉ thêm đuôi gọi API, không chèn gì khác','f.chatCall':'Chat','f.modelsCall':'Danh sách model','f.proto':'Định dạng API',
  'f.key':'API key','f.keyHint':'chỉ trong bộ nhớ','f.keyNote':'Không lưu, không ghi log. Chỉ gửi tới endpoint ở trên — nên dùng key dùng-một-lần, hạn mức thấp.',
  'f.model':'Model',
  'proto.auto':'Tự nhận diện','proto.openai':'Tương thích OpenAI (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
@@ -881,9 +885,8 @@ vi: {
  'f.latency':'Độ trễ','f.respModel':'Model trong response','f.respId':'ID response','f.protocol':'Định dạng','f.host':'Host','f.reply':'Nội dung trả lời','f.requested':'Yêu cầu','f.reported':'Báo về','f.claimed':'Hãng tự nhận','f.expectedV':'Hãng kỳ vọng','f.rawAnswer':'Câu trả lời gốc',
  'f.inTok':'Token đầu vào','f.outTok':'Token đầu ra','f.baseline':'Đầu vào cơ sở','f.big':'Đầu vào prompt dài','f.delta':'Chênh lệch','f.expected':'Kỳ vọng','f.ratio':'Tỉ lệ','f.finish':'Lý do kết thúc','f.limit':'Giới hạn','f.chars':'Số ký tự','f.sent':'Đã gửi','f.received':'Nhận lại',
  'f.found':'Bí mật tìm thấy','f.events':'Số sự kiện stream','f.ttfb':'Byte đầu tiên','f.spread':'Khoảng thời gian','f.ctype':'Content-type','f.term':'Kết thúc','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'Tin nhắn user','f.answers':'Các câu trả lời','f.score':'Điểm','f.yes':'có','f.no':'không','f.unknown':'không rõ',
- 'err.network':'Lỗi mạng — trình duyệt không tới được endpoint. Thường do server không cho phép gọi từ trình duyệt (CORS — thử CORS proxy ở mục Nâng cao), sai URL, hoặc dùng http trên trang https.',
- 'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về. Hoặc server không gửi header CORS cho lời gọi từ trình duyệt, hoặc đường dẫn sai (404 không kèm CORS trông y hệt). Đã gọi: {url}',
- 'err.unreach':'Hoàn toàn không tới được {host}. Nếu bạn đang xem trang trong khung xem trước/sandbox, hãy mở file bằng tab trình duyệt bình thường — các khung đó chặn request ra ngoài. Nếu không, kiểm tra tên miền, chứng chỉ TLS và mạng. Đã gọi: {url}',
+ 'err.network':'Trình duyệt không nhận được phản hồi đọc được từ {url}. Thường do: server không cho phép gọi từ trình duyệt (CORS) — tường lửa hoặc Cloudflare trả 403 cũng trông y hệt —, sai URL, lỗi TLS/mạng, hoặc trang đang nằm trong khung xem trước chặn request ra ngoài (hãy mở file bằng tab trình duyệt bình thường).',
+ 'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về: server không gửi header CORS cho lời gọi từ trình duyệt (tường lửa/Cloudflare 403 hay 404 không kèm CORS trông y hệt), hoặc URL sai. Đã gọi: {url}',
  'err.timeout':'Quá {s}s không nhận được dữ liệu.','err.stopped':'Bạn đã dừng.','err.config':'{msg}',
  'err.401':'Không được xác thực — kiểm tra API key và header xác thực.','err.403':'Bị từ chối — key không có quyền, hoặc nhà cung cấp chặn gọi từ trình duyệt.','err.404':'Không tìm thấy — kiểm tra base URL và tên model.','err.429':'Bị giới hạn tốc độ hoặc hết hạn mức.',
  'val.base':'Hãy nhập API base URL trước.','val.model':'Hãy nhập tên model (hoặc lấy danh sách).','val.headers':'Header bổ sung phải là JSON hợp lệ, ví dụ {"X-Foo":"bar"}.','val.url':'URL này không hợp lệ.','val.proxy':'CORS proxy phải là URL đầy đủ, ví dụ https://proxy.example.com/',
@@ -914,7 +917,7 @@ function applyI18n(){
   $$('[data-i18n]').forEach(e => { e.textContent = t(e.dataset.i18n); });
   $('#langLbl').textContent = LANG.toUpperCase();
   document.title = LANG === 'vi' ? 'ROF AI — Thật hay Giả? Kiểm tra model qua API' : 'ROF AI — Real or Fake? Test any model via API';
-  renderConnPill(); renderProbe(); renderHtmlStatic(); updateModelCount();
+  renderConnPill(); renderProbe(); renderHtmlStatic(); updateModelCount(); renderUrlPreview();
 }
 function setLang(l){ LANG = l; store.set('rof.lang', l); applyI18n(); }
 
@@ -961,7 +964,7 @@ function pickProvider(id){
   $('#base').value = p.base; $('#proto').value = p.proto;
   if (p.m) $('#model').value = p.m;
   $('#modelList').innerHTML = ''; updateModelCount();
-  markProvider(); setConn('idle'); persistConn();
+  markProvider(); setConn('idle'); persistConn(); renderUrlPreview();
   (p.base ? $('#key') : $('#base')).focus();
 }
 function markProvider(){
@@ -1010,7 +1013,7 @@ function readConn(){
     proxy: $('#proxy').value.trim(),
     tokenField: $('#tokenField').value,
     extra: {},
-    q: { maxCompletion: proto === 'openai' && /api\.openai\.com/i.test(base) && /(^|\/)(o\d|gpt-?5)/i.test($('#model').value), noTemp: false, noStreamOpts: false, v1: false, minimal: false }
+    q: { maxCompletion: proto === 'openai' && /api\.openai\.com/i.test(base) && /(^|\/)(o\d|gpt-?5)/i.test($('#model').value), noTemp: false, noStreamOpts: false, minimal: false }
   };
   const h = $('#headers').value.trim();
   if (h){ try { const o = JSON.parse(h); if (o && typeof o === 'object' && !Array.isArray(o)) c.extra = o; else throw 0; } catch { c.badHeaders = true; } }
@@ -1033,8 +1036,7 @@ function errText(e){
   switch (e.kind){
     case 'stopped': return t('err.stopped');
     case 'timeout': return t('err.timeout', { s: Math.round((e.ms || 0) / 1000) });
-    case 'network': return e.reachable === true ? t('err.cors', { url: shortUrl(e.url) })
-      : e.reachable === false ? t('err.unreach', { url: shortUrl(e.url), host: (() => { try { return new URL(e.url).host; } catch { return ''; } })() }) : t('err.network');
+    case 'network': return t(e.reachable === true ? 'err.cors' : 'err.network', { url: shortUrl(e.url) });
     case 'config':  return e.detail;
     case 'http': {
       const hint = [401, 403, 404, 429].includes(e.status) ? ' ' + t('err.' + e.status) : '';
@@ -1045,29 +1047,35 @@ function errText(e){
 }
 
 /* ---------- URL + header builders ---------- */
-const stripApiTail = p => p.replace(/\/+$/, '').replace(/\/(chat\/completions|completions|messages|responses|models)$/i, '');
-const canAddV1 = c => { try { return !c.q.v1 && c.proto !== 'gemini' && stripApiTail(new URL(c.base).pathname) === ''; } catch { return false; } };
 const shortUrl = u => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return String(u || ''); } };
+/* The URL is used exactly as typed. Only the method path (/chat/completions, /messages, …) is appended when the field holds a
+   base URL; if it already ends with the method path it is called verbatim. Nothing else is ever inserted (no /v1, no version). */
 function endpointFor(c, kind, o = {}){
   let u; try { u = new URL(c.base); } catch { throw new ApiError('config', t('val.url')); }
-  let path = stripApiTail(u.pathname);
-  if (c.proto === 'gemini') path = path.replace(/\/models\/[^/]+$/i, '');
-  if (!path) path = c.proto === 'gemini' ? '/v1beta' : (c.q.v1 ? '/v1' : '');   // keep the path exactly as typed; /v1 is only a fallback
-  const sp = new URLSearchParams(u.search);
-  let tail;
-  if (kind === 'models'){
-    tail = '/models';
-    if (c.proto === 'gemini') sp.set('pageSize', '1000');
-    if (c.proto === 'anthropic') sp.set('limit', '1000');
-  } else if (c.proto === 'openai') tail = '/chat/completions';
-  else if (c.proto === 'anthropic') tail = '/messages';
-  else {
-    const m = c.model.replace(/^models\//, '');
-    tail = `/models/${encodeURIComponent(m)}:${o.stream ? 'streamGenerateContent' : 'generateContent'}`;
-    if (o.stream) sp.set('alt', 'sse');
+  const bare = u.pathname.replace(/\/+$/, '');
+  if (c.proto === 'gemini'){
+    const root = bare.replace(/\/models(\/.*)?$/i, '');
+    const sp = new URLSearchParams(u.search);
+    let tail;
+    if (kind === 'models'){ tail = '/models'; sp.set('pageSize', '1000'); }
+    else {
+      tail = `/models/${encodeURIComponent(c.model.replace(/^models\//, ''))}:${o.stream ? 'streamGenerateContent' : 'generateContent'}`;
+      if (o.stream) sp.set('alt', 'sse');
+    }
+    const qs = sp.toString();
+    return u.origin + root + tail + (qs ? '?' + qs : '');
   }
-  const qs = sp.toString();
-  return u.origin + path + tail + (qs ? '?' + qs : '');
+  const own = c.proto === 'openai' ? /\/chat\/completions$/i : /\/messages$/i;
+  if (kind === 'models'){
+    const root = bare.replace(own, '').replace(/\/(completions|responses|models)$/i, '');
+    const sp = new URLSearchParams(u.search);
+    if (c.proto === 'anthropic') sp.set('limit', '1000');
+    const qs = sp.toString();
+    return u.origin + root + '/models' + (qs ? '?' + qs : '');
+  }
+  if (own.test(bare)) return u.origin + u.pathname + u.search;                       // a complete endpoint URL: called verbatim
+  const root = bare.replace(/\/(completions|responses|models)$/i, '');
+  return u.origin + root + (c.proto === 'openai' ? '/chat/completions' : '/messages') + u.search;
 }
 function authHeaders(c){
   const h = {};
@@ -1115,8 +1123,8 @@ async function http(c, url, { method = 'GET', body, signal } = {}){
     throw err;
   }
 }
-/* A failed fetch() is opaque: CORS refusals, wrong paths on servers without CORS headers and dead hosts all look alike.
-   A no-cors request resolves whenever the host answers at all, which tells them apart. */
+/* A failed fetch() is opaque. A no-cors request that resolves proves the host answered; one that fails proves nothing
+   (a Cloudflare challenge or CORP header makes it fail too), so the result is only used to word the message. */
 async function probeReach(url){
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);
   try { await fetch(new URL(url).origin + '/', { mode:'no-cors', cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal: ctl.signal }); return true; }
@@ -1270,9 +1278,8 @@ async function chat(c, o){
         if (c.proto === 'openai' && !c.q.noStreamOpts && /stream_options/.test(m)){ c.q.noStreamOpts = true; continue; }
         throw e;
       }
-      if (e.kind === 'http' && [404, 405].includes(e.status) && canAddV1(c)){ c.q.v1 = true; continue; }
-      if (e.kind === 'network' && e.reachable && !c.q.minimal){ c.q.minimal = true; continue; }   // host answered but the browser refused: retry on the same path with a bare-bones body
-      if (e.kind === 'network' && canAddV1(c)){ c.q.v1 = true; continue; }                          // then try the conventional /v1 prefix
+      // a strict relay may refuse optional parameters with a response the browser can't read: retry once, same URL, bare-bones body
+      if (e.kind === 'network' && !c.q.minimal && ((o.temperature != null && !c.q.noTemp) || (o.stream && c.proto === 'openai' && !c.q.noStreamOpts))){ c.q.minimal = true; continue; }
       throw e;
     }
   }
@@ -1280,19 +1287,12 @@ async function chat(c, o){
 }
 
 async function fetchModels(c){
-  for (let i = 0; ; i++){
-    try {
-      const { res, done } = await http(c, endpointFor(c, 'models'), {});
-      let j; try { j = await res.json(); } finally { done(); }
-      let ids = [];
-      if (c.proto === 'gemini') ids = (j.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')).map(m => String(m.name).replace(/^models\//, ''));
-      else ids = (Array.isArray(j) ? j : j.data || j.models || []).map(m => typeof m === 'string' ? m : (m.id || m.name || m.model)).filter(Boolean);
-      return [...new Set(ids)].sort();
-    } catch (e){
-      if (i < 1 && e instanceof ApiError && (e.kind === 'network' || [404, 405].includes(e.status)) && canAddV1(c)){ c.q.v1 = true; continue; }
-      throw e;
-    }
-  }
+  const { res, done } = await http(c, endpointFor(c, 'models'), {});
+  let j; try { j = await res.json(); } finally { done(); }
+  let ids = [];
+  if (c.proto === 'gemini') ids = (j.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')).map(m => String(m.name).replace(/^models\//, ''));
+  else ids = (Array.isArray(j) ? j : j.data || j.models || []).map(m => typeof m === 'string' ? m : (m.id || m.name || m.model)).filter(Boolean);
+  return [...new Set(ids)].sort();
 }
 
 /* ==========================================================================
@@ -1307,6 +1307,14 @@ function renderConnPill(){
     : connState.s === 'bad' ? (t('conn.fail') + (connState.msg ? ' · ' + connState.msg : ''))
     : connState.s === 'busy' ? t('conn.checking') : t('conn.idle');
   pill.title = connState.s === 'bad' ? connState.msg : '';
+}
+function renderUrlPreview(){
+  const el = $('#urlPreview'); if (!el) return;
+  if (!$('#base').value.trim()){ el.textContent = ''; return; }
+  try {
+    const c = readConn(); if (!c.model) c.model = 'MODEL';
+    el.innerHTML = `<i>${esc(t('f.chatCall'))}</i> → <b>POST</b> ${esc(shortUrl(endpointFor(c, 'chat')))}<br><i>${esc(t('f.modelsCall'))}</i> → <b>GET</b> ${esc(shortUrl(endpointFor(c, 'models')))}`;
+  } catch { el.textContent = ''; }
 }
 function updateModelCount(){ const n = $('#modelList').options.length; $('#modelCount').textContent = n ? t('models.n', { n }) : ''; }
 
@@ -1814,7 +1822,8 @@ function init(){
 
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'en' ? 'vi' : 'en'));
   $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-  $('#base').addEventListener('input', () => { markProvider(); setConn('idle'); });
+  $('#base').addEventListener('input', () => { markProvider(); setConn('idle'); renderUrlPreview(); });
+  for (const id of ['proto', 'model']) $('#' + id).addEventListener('input', renderUrlPreview);
   $('#base').addEventListener('change', persistConn);
   for (const id of ['proto', 'model', 'auth']) $('#' + id).addEventListener('change', persistConn);
   $('#key').addEventListener('input', () => setConn('idle'));

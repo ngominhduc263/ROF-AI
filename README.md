@@ -27,8 +27,10 @@ You can also try a file without editing the source via the **Load reference file
 - Model output is rendered in an iframe with `sandbox="allow-scripts"` (no same-origin access) and a CSP that blocks all network
   access, so external libraries fail to load — exactly what the prompt forbids.
 - Calls are made straight from the browser, so the provider must allow CORS. Open the file in a normal browser tab —
-  preview panes/sandboxes block outside requests. The base URL is used exactly as typed (`…/chat/completions` is appended);
-  `/v1` is only tried as a fallback, and a bare-bones request body is retried when a strict relay refuses extra parameters.
+  preview panes/sandboxes block outside requests. The endpoint is used exactly as typed: only the method path
+  (`/chat/completions`, `/messages`, `/models`) is appended to a base URL, and a URL that already ends with it is called
+  verbatim. Nothing else (no `/v1`) is ever inserted; the exact URLs are shown under the field. If a strict relay refuses
+  the response, the request is retried once with a bare-bones body (no `temperature` / `stream_options`).
 - A forward proxy in `host:port:user:pass` form cannot be used from a plain web page (browsers can't tunnel through
   authenticated HTTP/SOCKS proxies). The *CORS proxy prefix* field expects the URL of a small self-hosted relay instead
   (your key then passes through it).
