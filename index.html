@@ -1865,6 +1865,7 @@ Object.assign(I18N.en, {
  "html.m2": "15 min total",
  "html.m3": "bash + editor + render",
  "adv.timeout": "Total time limit (s, max 1800)",
+ "err.probeCors": "BazaarLink does not allow calls from a browser page (it sends no CORS header), so the probe cannot run from here. Open ROF through the relay — run “node server.mjs” and open http://localhost:8787 — or use the hosted ROF AI page.",
  "adv.upstreamOn": "host:port:user:pass · relay only",
  "adv.tokenOn": "Relay token (required by this relay)",
  "err.relayToken": "The relay rejected the request — check the relay token.",
@@ -1992,6 +1993,7 @@ Object.assign(I18N.vi, {
  "html.m2": "Tổng 15 phút",
  "html.m3": "bash + editor + render",
  "adv.timeout": "Thời gian tổng (giây, tối đa 1800)",
+ "err.probeCors": "BazaarLink không cho trang web gọi trực tiếp từ trình duyệt (không có header CORS) nên bài Probe không chạy được từ đây. Hãy mở ROF qua relay — chạy “node server.mjs” rồi mở http://localhost:8787 — hoặc dùng bản ROF AI trên web.",
  "adv.upstreamOn": "host:port:user:pass · chỉ dùng với relay",
  "adv.tokenOn": "Relay token (relay này yêu cầu)",
  "err.relayToken": "Relay từ chối yêu cầu — kiểm tra relay token.",
@@ -2651,7 +2653,8 @@ function cleanReport(v,secrets=[]){
   if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).filter(([k])=>!/^(?:apiKey|api_key|userKey|startedByIp|responseHeaders|authorization|x-api-key|x-goog-api-key|api-key|x-sharedllm-key)$/i.test(k)).map(([k,x])=>[k,cleanReport(x,secrets)]));
   return v;
 }
-async function probeAPI(c,id,payload,signal){
+async function probeAPI(c,id,payload,signal){try{return await probeAPIInner(c,id,payload,signal);}catch(e){if(e instanceof TypeError&&routeOf(c.route,c.base)!=='relay')throw new ApiError('config',t('err.probeCors'));throw e;}}
+async function probeAPIInner(c,id,payload,signal){
   await relay.ready;
   if(c.route!=='direct'&&relay.error)throw relay.error;
   const viaRelay=routeOf(c.route,c.base)==='relay';
