@@ -1,16 +1,42 @@
 # ROF AI — modelrealoffake (rofai.net)
 
 Web app that tests whether an LLM endpoint is the real model. The page is a single static file (`index.html`);
-an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limits and adds upstream proxy support.
+an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limits, serves the BazaarLink probe API and adds upstream proxy support.
 
-- **Connect** to any OpenAI-compatible, Anthropic (Messages) or Google Gemini endpoint with a base URL + API key.
-  The key lives only in the password field (memory). It is never written to storage, URLs or reports.
-- **Probe test** — 12 checks: handshake, model echo, self-identification, reasoning sanity, hidden-prompt token overhead,
-  token accounting, `max_tokens`, system-prompt handling, hidden system prompt, echo integrity, long-context recall, SSE streaming.
-- **HTML test (Cycling Pelican)** — the model writes an animated SVG pelican on a bicycle; the result renders in a sandboxed
-  iframe next to the genuine reference, can be downloaded as `.html`, and is auto-checked against the prompt's constraints.
-  Reasoning models that burn their whole budget thinking are retried with a larger budget, and an empty answer is explained
-  (finish reason, token counts, reasoning length).
+- **Connect** to any OpenAI-compatible (Chat Completions or Responses), Anthropic (Messages) or Google Gemini endpoint with a base URL + API key.
+  The key lives only in the password field (memory). It is never written to storage, URLs, logs or reports.
+- **Probe test** — runs the official [BazaarLink probe](https://bazaarlink.ai/probe) (identity assessment, evidence and API-integrity checks) after an explicit
+  consent dialog, because the endpoint and key are sent to BazaarLink. The report shows BazaarLink's verdict and reasoning, the resolved identity,
+  the score, and every check grouped by category (Chinese check names are translated; the original stays as a subtitle). Neutral control probes,
+  errored probes and behaviour warnings are listed separately and never counted as passes.
+- **HTML test (Cycling Pelican)** — the model builds an animated SVG pelican on a bicycle. The result renders in a sandboxed iframe next to the
+  genuine reference, can be downloaded as `.html`, and is auto-checked (standalone document, inline SVG, CSS keyframes, no scripts / external assets,
+  visible on desktop and mobile, animation actually moves).
+
+## The agent harness (HTML test)
+
+The HTML test runs the model inside a harness that follows the **minimal profile of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)**:
+
+| | |
+| --- | --- |
+| system prompt | `You are a helpful software engineer assistant.` — the task prompt is sent unchanged as the first user message |
+| tools | `bash` and `str_replace_editor` (`view` / `create` / `str_replace` / `insert`), with DeepSeek Harness's tool descriptions |
+| loop | send history + tool schemas → run every tool call → append the results → repeat until the model stops calling tools (≤ 30 model calls, within the time limit) |
+| sampling | `temperature 1.0`, `top_p 0.95` (the Temperature field overrides the first) |
+| session log | append-only, one JSON object per line; *Download .jsonl* in the page, and embedded in *Harness report* |
+| workspace | `/workspace`; the deliverable is `/workspace/index.html` (the newest `.html`, or HTML in the final message, is used if the model picks another name) |
+
+The "machine" is an **in-memory project directory with a small shell emulator** (heredocs, pipes, redirects, `&&`/`||`, `$VAR`, globbing, `ls cat grep find sed sort
+head tail wc mkdir cp mv rm tee …`, no network, no loops/conditionals) — a model under test can never touch the computer running the page. It adds one command,
+`render [file]`, which renders the page in the sandbox and reports the same checks the page shows, so the model can repair its own work. Each file the model
+writes becomes a version you can open in the preview; a final render check runs on the last one.
+
+Native tool calling is implemented for all four protocols, streaming or not (DeepSeek's `reasoning_content`, Responses `encrypted_content`, Anthropic thinking
+blocks and Gemini `thoughtSignature` are replayed as each provider requires). A model or gateway that refuses tool calling shows a hint; switch the harness to
+**Text-only** (the toggle in the panel) to test it with the previous single-prompt loop (≤ 3 model calls, no tools).
+
+*Compatible* means the profile and tool contract above; ROF AI is independent and is not affiliated with or endorsed by DeepSeek. Results from this harness are
+not DeepSeek benchmark scores.
 
 ## Two ways to run
 
@@ -27,9 +53,12 @@ PROXY=host:port:user:pass node server.mjs
 PROXY=socks5://host:port:user:pass node server.mjs
 ```
 
-Open the page from the relay's address (`http://localhost:8787`; the relay's own requests carry no `Origin`, so Origin-restricted gateways such as ShareLLM work). The page detects it and routes API calls through `/api/relay`
-(*Advanced → Connection route*: Auto / Direct / Via relay). The relay forwards the call server-side and streams the answer back,
-so CORS never applies. You can also type the proxy into the page (*Advanced → Upstream proxy*, kept in memory only).
+Open the page from the relay's address (`http://localhost:8787`; the relay's own requests carry no `Origin`, so Origin-restricted gateways such as ShareLLM work).
+The page detects it and routes API calls through the relay (*Advanced → Connection route*: Auto / Direct / Via relay). The relay forwards the call server-side
+and streams the answer back, so CORS never applies. The BazaarLink probe goes through it too.
+
+The page reads `/api/health` and enables the optional fields only when the relay offers them: *Upstream proxy* (`host:port:user:pass`, kept in memory only)
+and *Relay token* (when the relay was started with `RELAY_TOKEN`). Against any other relay both stay disabled.
 
 Proxy format is `host:port:user:pass` (a password containing `:` is fine; `user:pass@host:port` also works).
 With no scheme the relay tries an HTTP `CONNECT` tunnel first and falls back to SOCKS5; add `http://` or `socks5://` to force one.
@@ -43,10 +72,17 @@ With no scheme the relay tries an HTTP `CONNECT` tunnel first and falls back to 
 | `ALLOW_CLIENT_PROXY` | let the page choose the proxy per request (default = `ALLOW_PRIVATE`) |
 | `ALLOWED_HOSTS` | extra accepted `Host` headers for non-loopback deployments |
 | `IDLE_TIMEOUT_S` | abort an upstream call that sends nothing for this long (default 600) |
+| `PROBE_BASE` | where the BazaarLink probe API lives (default `https://bazaarlink.ai`) |
 
-Relay safety: it listens on loopback by default, refuses cross-origin and DNS-rebinding requests, blocks private targets unless
-allowed, strips cookies/HSTS from answers, and logs only `METHOD host/path → status` — never keys, bodies or query strings.
-Do not expose it publicly without `RELAY_TOKEN` (it refuses to start that way).
+| route | |
+| --- | --- |
+| `GET /api/health` | `{app, relay, renderer, probe, tokenRequired, clientProxy, …}` |
+| `POST /api/relay` | `{url, method, headers, body, proxy?}` → the provider's answer, streamed. Header `x-rof-source: provider` |
+| `POST /api/probe/start`, `GET /api/probe/status?id=` | forwarded to `PROBE_BASE/api/probe/run[/{id}]`. Header `x-rof-source: bazaarlink` |
+
+Answers produced by the relay itself carry `x-rof-source: rof-relay`, so the page never mistakes a provider's own 401/403 for a relay failure.
+Relay safety: it listens on loopback by default, refuses cross-origin and DNS-rebinding requests, blocks private targets unless allowed, strips cookies/HSTS
+from answers, and logs only `METHOD host/path → status` — never keys, bodies or query strings. Do not expose it publicly without `RELAY_TOKEN` (it refuses to start that way).
 
 ## Adding the genuine reference file
 
@@ -64,12 +100,10 @@ You can also try a file without editing the source via the **Load reference file
 
 - Model output is rendered in an iframe with `sandbox="allow-scripts"` (no same-origin access) and a CSP that blocks all network
   access, so external libraries fail to load — exactly what the prompt forbids.
-- The endpoint is used exactly as typed: only the method path (`/chat/completions`, `/messages`, `/models`) is appended to a
-  base URL, and a URL that already ends with it is called verbatim. Nothing else (no `/v1`) is ever inserted; the exact URLs are
-  shown under the field. If a strict relay refuses the response, the request is retried once with a bare-bones body
-  (no `temperature` / `stream_options`).
-- The HTML test sends **no practical output limit**: it asks for 131,072 tokens and, if the provider rejects that (OpenAI, Anthropic,
-  Gemini, OpenRouter credit limits, …), steps down automatically to the cap it names (or halves until accepted). Type a number into
-  *Max output tokens* to force a limit, or choose *Don't send a limit* to omit the field (OpenAI format).
+- The endpoint is used exactly as typed: only the method path (`/chat/completions`, `/responses`, `/messages`, `/models`) is appended to a
+  base URL, and a URL that already ends with it is called verbatim. Nothing else (no `/v1`) is ever inserted; the exact URLs are shown under the field.
+- The HTML test sends **no output limit by default** (*Unlimited by ROF*; Anthropic's required `max_tokens` is set to 100,000). Pick a parameter name or enter a
+  number in *Advanced* to force one. The total time limit defaults to 15 minutes (up to 30).
 - The model picker always lists every model returned by the endpoint (with search), regardless of what is typed in the field.
-- Results are heuristic: passing every check does not prove a relay is clean.
+- Results are heuristic: passing every check does not prove a relay is clean, and the agent harness has been exercised against scripted mock providers,
+  not against every real one.
