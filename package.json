@@ -1,0 +1,14 @@
+{
+  "name": "rof-ai",
+  "version": "1.0.0",
+  "description": "ROF AI (modelrealoffake) — test whether an LLM endpoint is the real model. Optional zero-dependency relay for CORS / upstream proxies.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

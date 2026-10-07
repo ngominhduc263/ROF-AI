@@ -142,6 +142,15 @@ select.input option{background:var(--bg-2);color:var(--text)}
 .urlprev:empty{display:none}
 .urlprev i{font-style:normal;color:var(--muted);font-weight:600}
 .urlprev b{color:var(--ok-text);font-weight:600}
+.combo{position:relative;flex:1;min-width:0}
+.combo #model{padding-right:46px}
+.combo-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;min-width:260px;padding:8px;border-radius:14px;border:1px solid var(--line-2);background:var(--bg-2);box-shadow:0 24px 60px -16px rgba(0,0,0,.65)}
+.combo-search{min-height:38px;padding:8px 12px;font-size:13px;margin-bottom:6px}
+.combo-list{max-height:min(320px,50vh);overflow:auto;display:flex;flex-direction:column;gap:2px}
+.combo-item{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 11px;border-radius:9px;font:500 13px/1.3 var(--mono);color:var(--text);overflow-wrap:anywhere}
+.combo-item:hover,.combo-item.act{background:var(--surface-2)}
+.combo-item.cur{color:var(--ok-text);background:var(--ok-bg)}
+.combo-empty{padding:14px;text-align:center;color:var(--faint);font-size:13px}
 .hint{display:flex;gap:8px;align-items:flex-start;margin:8px 2px 0;font-size:12.5px;color:var(--faint);line-height:1.45}
 .hint svg{margin-top:2px;color:var(--ok-text)}
 details.adv{margin-top:18px;border:1px dashed var(--line-2);border-radius:14px;padding:0 16px}
@@ -335,6 +344,7 @@ footer b{color:var(--muted);font-family:var(--display)}
     <div class="step-head">
       <span class="num">01</span>
       <div class="grow"><h2 data-i18n="conn.title"></h2><p data-i18n="conn.sub"></p></div>
+      <span class="status-pill" id="routePill"><i></i><span id="routePillTxt"></span></span>
       <span class="status-pill" id="connPill"><i></i><span id="connPillTxt" data-i18n="conn.idle"></span></span>
     </div>
 
@@ -366,8 +376,14 @@ footer b{color:var(--muted);font-family:var(--display)}
       <div class="field c6">
         <label for="model"><span data-i18n="f.model"></span><em id="modelCount"></em></label>
         <div class="with-btn">
-          <input class="input mono" id="model" list="modelList" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="gpt-4o · claude-sonnet-4-5 · gemini-2.5-pro">
-          <datalist id="modelList"></datalist>
+          <div class="combo" id="modelCombo">
+            <input class="input mono" id="model" type="text" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="modelPop" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="gpt-4o · claude-sonnet-4-5 · gemini-2.5-pro">
+            <button class="eye" id="modelToggle" type="button" aria-label="Show all models"><i data-ico="chevron"></i></button>
+            <div class="combo-pop" id="modelPop" hidden>
+              <input class="input combo-search" id="modelSearch" type="text" autocomplete="off" spellcheck="false" data-i18n-ph="models.search">
+              <div class="combo-list" id="modelItems" role="listbox"></div>
+            </div>
+          </div>
           <button class="btn" id="fetchModels" type="button"><i data-ico="refresh"></i><span data-i18n="btn.models"></span></button>
         </div>
       </div>
@@ -400,8 +416,16 @@ footer b{color:var(--muted);font-family:var(--display)}
             <option value="max_completion_tokens">max_completion_tokens</option>
             <option value="omit" data-i18n="adv.tokOmit"></option>
           </select></div>
-        <div class="field c12"><label for="proxy"><span data-i18n="adv.proxy"></span><em data-i18n="adv.proxyHint"></em></label>
-          <input class="input mono" id="proxy" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://your-proxy.example.workers.dev/"></div>
+        <div class="field c4"><label for="route"><span data-i18n="adv.route"></span></label>
+          <select class="input" id="route">
+            <option value="auto" data-i18n="adv.routeAuto"></option>
+            <option value="direct" data-i18n="adv.routeDirect"></option>
+            <option value="relay" data-i18n="adv.routeRelay"></option>
+          </select></div>
+        <div class="field c4"><label for="upstream"><span data-i18n="adv.upstream"></span><em data-i18n="adv.upstreamHint"></em></label>
+          <input class="input mono" id="upstream" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="rof-noproxy" placeholder="host:port:user:pass"></div>
+        <div class="field c4"><label for="relayToken"><span data-i18n="adv.token"></span><em data-i18n="f.keyHint"></em></label>
+          <input class="input mono" id="relayToken" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="rof-notoken"></div>
         <div class="field c6"><label aria-hidden="true">&nbsp;</label>
           <label class="check"><input type="checkbox" id="stream" checked><span data-i18n="adv.stream"></span></label></div>
       </div>
@@ -764,7 +788,7 @@ en: {
  'f.model':'Model',
  'proto.auto':'Auto-detect','proto.openai':'OpenAI-compatible (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Fetch models','btn.test':'Test connection','btn.stop':'Stop','btn.report':'Download report','btn.download':'Download .html','btn.copy':'Copy code',
- 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.proxy':'CORS proxy prefix','adv.proxyHint':'URL prefix of a CORS relay (not host:port:user:pass) — your key passes through it','adv.tok':'Output-limit parameter (OpenAI format)','adv.tokAuto':'Auto','adv.tokOmit':'Don’t send a limit','adv.stream':'Stream the HTML test',
+ 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.route':'Connection route','adv.routeAuto':'Auto (relay if available)','adv.routeDirect':'Direct from browser','adv.routeRelay':'Via ROF relay','adv.upstream':'Upstream proxy','adv.upstreamHint':'host:port:user:pass · relay only','adv.token':'Relay token','adv.tok':'Output-limit parameter (OpenAI format)','adv.tokAuto':'Auto','adv.tokOmit':'Don’t send a limit','adv.stream':'Stream the HTML test',
  'pick.title':'Choose a test','pick.sub':'Two ways to catch a fake. Run either, or both.',
  'probe.tag':'BazaarLink-style','probe.name':'Probe test','probe.desc':'12 quick checks that expose model swaps, hidden prompts, inflated token counts, tampered output and fake streaming.',
  'probe.m1':'~11 requests','probe.m2':'~20–60 s','probe.m3':'~7k tokens','probe.run':'Run probe test',
@@ -810,18 +834,22 @@ en: {
  'f.latency':'Latency','f.respModel':'Response model','f.respId':'Response ID','f.protocol':'Format','f.host':'Host','f.reply':'Reply','f.requested':'Requested','f.reported':'Reported','f.claimed':'Claimed vendor','f.expectedV':'Expected vendor','f.rawAnswer':'Raw answer',
  'f.inTok':'Input tokens','f.outTok':'Output tokens','f.baseline':'Baseline input','f.big':'Big prompt input','f.delta':'Delta','f.expected':'Expected','f.ratio':'Ratio','f.finish':'Finish reason','f.limit':'Limit','f.chars':'Characters','f.sent':'Sent','f.received':'Received',
  'f.found':'Secrets found','f.events':'Stream events','f.ttfb':'First byte','f.spread':'Time spread','f.ctype':'Content-type','f.term':'Terminator','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'User message','f.answers':'Answers','f.score':'Score','f.yes':'yes','f.no':'no','f.unknown':'unknown',
- 'err.network':'The browser got no readable response from {url}. Likely causes: the server doesn’t allow browser (CORS) calls — a firewall or Cloudflare challenge answering 403 looks identical —, a wrong URL, TLS/network trouble, or this page sits in a preview pane that blocks outside requests (open the file in a normal browser tab).',
+ 'err.network':'The browser got no readable response from {url}. Likely causes: the server doesn’t allow browser (CORS) calls — a firewall or Cloudflare challenge answering 403 looks identical —, a wrong URL, TLS/network trouble, or this page sits in a preview pane that blocks outside requests (open the file in a normal browser tab). Running “node server.mjs” avoids CORS altogether.',
  'err.cors':'The server answered, but the browser refused to hand over the response: it sends no CORS headers for browser calls (a firewall/Cloudflare 403 or a 404 without CORS headers looks the same), or the URL is wrong. Tried: {url}',
  'err.timeout':'Timed out after {s}s with no data.','err.stopped':'Stopped by you.','err.config':'{msg}',
  'err.401':'Unauthorized — check the API key and auth header.','err.403':'Forbidden — the key lacks access, or the provider blocks browser requests.','err.404':'Not found — check the base URL and model name.','err.429':'Rate limited or out of quota.',
- 'val.base':'Enter the API base URL first.','val.model':'Enter a model name (or fetch the list).','val.headers':'Extra headers must be valid JSON, e.g. {"X-Foo":"bar"}.','val.url':'That doesn’t look like a valid URL.','val.proxy':'The CORS proxy must be a full URL, e.g. https://proxy.example.com/',
- 'models.n':'{n} models','models.loaded':'Loaded {n} models — pick one from the Model field.','models.none':'The endpoint returned no models. Type a model name manually.',
+ 'val.base':'Enter the API base URL first.','val.model':'Enter a model name (or fetch the list).','val.headers':'Extra headers must be valid JSON, e.g. {"X-Foo":"bar"}.','val.url':'That doesn’t look like a valid URL.','route.direct':'Direct from browser','route.relay':'Via ROF relay','route.relayProxy':'Via relay · proxy {p}','route.noRelay':'Relay not found','route.proxyIgnored':'proxy ignored (needs the relay)','route.needToken':'Relay needs a token','route.tip':'How API calls leave this page: straight from your browser (CORS applies) or through the local ROF relay (node server.mjs), which can use a proxy.',
+ 'err.norelay':'No relay found. Run “node server.mjs” and open the page from http://localhost:8787 — or set the route to Direct.','err.relayDown':'The relay did not answer. Is “node server.mjs” still running?','err.relayAuth':'The relay rejected the request — check the relay token.','err.relay':'Relay: {msg}','f.route':'Route',
+ 'models.n':'{n} models','models.search':'Search models…','models.noMatch':'No model matches.','models.loaded':'Loaded {n} models — pick one from the Model field.','models.none':'The endpoint returned no models. Type a model name manually.',
  'ht.title':'HTML test — Cycling Pelican','ht.idle':'Run the HTML test and compare the two sides.','ht.run':'Generating with {model}…','ht.done':'Done in {s}s','ht.stopped':'Stopped — showing the partial output','ht.err':'Run failed',
  'ht.prompt':'Challenge prompt (English)','ht.reset':'Reset to default','ht.real':'Real','ht.refName':'Genuine reference','ht.placeholder':'Placeholder sample','ht.loadRef':'Load reference file','ht.full':'Fullscreen',
  'ht.model':'Model','ht.preview':'Preview','ht.source':'Source','ht.replay':'Replay both',
  'ht.emptyT':'Waiting for your model','ht.emptyP':'Hit “Run HTML test”. The generated page will render here, next to the real reference.',
  'ht.genT':'Writing the page…','ht.genP':'{n} characters so far. Switch to “Source” to watch it stream in.',
  'ht.noHtml':'The reply contained no HTML. Open “Source” to read what the model said.',
+ 'ht.noHtmlT':'No HTML in the reply','ht.noHtmlWhy':'No HTML found in the reply.','ht.d.finish':'finish: {v}','ht.d.out':'output tokens: {v}','ht.d.reason':'reasoning: {v}','ht.d.reply':'reply: {v} chars',
+ 'ht.d.cut':'The model ran out of tokens — reasoning models spend them thinking. Raise “Max output tokens” in Advanced.','ht.d.onlyReason':'The model produced only reasoning and no answer — try again or raise “Max output tokens”.','ht.d.read':'Open “Source” to read what it said.','ht.d.retryErr':'(Retry with a larger budget failed: {e})',
+ 'ht.retry':'The model used its whole budget thinking — retrying with {n} tokens…','ht.thinkT':'Thinking…','ht.thinkP':'{n} characters of reasoning so far — reasoning models can think for a while before they write.','ht.reasonLabel':'reasoning — the model’s thinking, no final answer yet','st.reason':'Reasoning',
  'ht.copied':'Code copied','ht.loaded':'Reference loaded (kept in memory only)','ht.truncated':'Output was cut off by the token limit — raise “Max output tokens” in Advanced.',
  'st.time':'Time','st.out':'Output tokens','st.speed':'Speed','st.size':'File size','st.finish':'Finish',
  'con.single':'Single HTML file','con.svg':'Inline SVG','con.kf':'CSS @keyframes ×{n}','con.noext':'No external resources','con.nojs':'CSS only (no JS / SMIL)','con.title':'Auto checks',
@@ -839,7 +867,7 @@ vi: {
  'f.model':'Model',
  'proto.auto':'Tự nhận diện','proto.openai':'Tương thích OpenAI (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Lấy danh sách','btn.test':'Kiểm tra kết nối','btn.stop':'Dừng','btn.report':'Tải báo cáo','btn.download':'Tải file .html','btn.copy':'Sao chép code',
- 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.proxy':'Tiền tố CORS proxy','adv.proxyHint':'tiền tố URL của CORS relay (không phải host:port:user:pass) — key sẽ đi qua nó','adv.tok':'Tham số giới hạn output (định dạng OpenAI)','adv.tokAuto':'Tự động','adv.tokOmit':'Không gửi giới hạn','adv.stream':'Stream ở bài HTML',
+ 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.route':'Đường kết nối','adv.routeAuto':'Tự động (dùng relay nếu có)','adv.routeDirect':'Trực tiếp từ trình duyệt','adv.routeRelay':'Qua ROF relay','adv.upstream':'Proxy upstream','adv.upstreamHint':'host:port:user:pass · chỉ dùng với relay','adv.token':'Relay token','adv.tok':'Tham số giới hạn output (định dạng OpenAI)','adv.tokAuto':'Tự động','adv.tokOmit':'Không gửi giới hạn','adv.stream':'Stream ở bài HTML',
  'pick.title':'Chọn bài test','pick.sub':'Hai cách bắt hàng giả. Chạy một hoặc cả hai.',
  'probe.tag':'Kiểu BazaarLink','probe.name':'Bài Probe','probe.desc':'12 phép thử nhanh để lộ việc tráo model, prompt ẩn, đếm token ảo, output bị sửa và streaming giả.',
  'probe.m1':'~11 request','probe.m2':'~20–60 giây','probe.m3':'~7k token','probe.run':'Chạy test Probe',
@@ -885,18 +913,22 @@ vi: {
  'f.latency':'Độ trễ','f.respModel':'Model trong response','f.respId':'ID response','f.protocol':'Định dạng','f.host':'Host','f.reply':'Nội dung trả lời','f.requested':'Yêu cầu','f.reported':'Báo về','f.claimed':'Hãng tự nhận','f.expectedV':'Hãng kỳ vọng','f.rawAnswer':'Câu trả lời gốc',
  'f.inTok':'Token đầu vào','f.outTok':'Token đầu ra','f.baseline':'Đầu vào cơ sở','f.big':'Đầu vào prompt dài','f.delta':'Chênh lệch','f.expected':'Kỳ vọng','f.ratio':'Tỉ lệ','f.finish':'Lý do kết thúc','f.limit':'Giới hạn','f.chars':'Số ký tự','f.sent':'Đã gửi','f.received':'Nhận lại',
  'f.found':'Bí mật tìm thấy','f.events':'Số sự kiện stream','f.ttfb':'Byte đầu tiên','f.spread':'Khoảng thời gian','f.ctype':'Content-type','f.term':'Kết thúc','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'Tin nhắn user','f.answers':'Các câu trả lời','f.score':'Điểm','f.yes':'có','f.no':'không','f.unknown':'không rõ',
- 'err.network':'Trình duyệt không nhận được phản hồi đọc được từ {url}. Thường do: server không cho phép gọi từ trình duyệt (CORS) — tường lửa hoặc Cloudflare trả 403 cũng trông y hệt —, sai URL, lỗi TLS/mạng, hoặc trang đang nằm trong khung xem trước chặn request ra ngoài (hãy mở file bằng tab trình duyệt bình thường).',
+ 'err.network':'Trình duyệt không nhận được phản hồi đọc được từ {url}. Thường do: server không cho phép gọi từ trình duyệt (CORS) — tường lửa hoặc Cloudflare trả 403 cũng trông y hệt —, sai URL, lỗi TLS/mạng, hoặc trang đang nằm trong khung xem trước chặn request ra ngoài (hãy mở file bằng tab trình duyệt bình thường). Chạy “node server.mjs” sẽ tránh hẳn CORS.',
  'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về: server không gửi header CORS cho lời gọi từ trình duyệt (tường lửa/Cloudflare 403 hay 404 không kèm CORS trông y hệt), hoặc URL sai. Đã gọi: {url}',
  'err.timeout':'Quá {s}s không nhận được dữ liệu.','err.stopped':'Bạn đã dừng.','err.config':'{msg}',
  'err.401':'Không được xác thực — kiểm tra API key và header xác thực.','err.403':'Bị từ chối — key không có quyền, hoặc nhà cung cấp chặn gọi từ trình duyệt.','err.404':'Không tìm thấy — kiểm tra base URL và tên model.','err.429':'Bị giới hạn tốc độ hoặc hết hạn mức.',
- 'val.base':'Hãy nhập API base URL trước.','val.model':'Hãy nhập tên model (hoặc lấy danh sách).','val.headers':'Header bổ sung phải là JSON hợp lệ, ví dụ {"X-Foo":"bar"}.','val.url':'URL này không hợp lệ.','val.proxy':'CORS proxy phải là URL đầy đủ, ví dụ https://proxy.example.com/',
- 'models.n':'{n} model','models.loaded':'Đã tải {n} model — chọn một cái ở ô Model.','models.none':'Endpoint không trả về model nào. Hãy gõ tên model thủ công.',
+ 'val.base':'Hãy nhập API base URL trước.','val.model':'Hãy nhập tên model (hoặc lấy danh sách).','val.headers':'Header bổ sung phải là JSON hợp lệ, ví dụ {"X-Foo":"bar"}.','val.url':'URL này không hợp lệ.','route.direct':'Trực tiếp từ trình duyệt','route.relay':'Qua ROF relay','route.relayProxy':'Qua relay · proxy {p}','route.noRelay':'Không thấy relay','route.proxyIgnored':'bỏ qua proxy (cần relay)','route.needToken':'Relay cần token','route.tip':'Cách lời gọi API rời khỏi trang này: thẳng từ trình duyệt (chịu CORS) hoặc qua ROF relay (node server.mjs) — relay dùng được proxy.',
+ 'err.norelay':'Không thấy relay. Hãy chạy “node server.mjs” rồi mở trang từ http://localhost:8787 — hoặc đặt đường kết nối là Trực tiếp.','err.relayDown':'Relay không trả lời. “node server.mjs” còn đang chạy không?','err.relayAuth':'Relay từ chối yêu cầu — kiểm tra relay token.','err.relay':'Relay: {msg}','f.route':'Đường kết nối',
+ 'models.n':'{n} model','models.search':'Tìm model…','models.noMatch':'Không có model nào khớp.','models.loaded':'Đã tải {n} model — chọn một cái ở ô Model.','models.none':'Endpoint không trả về model nào. Hãy gõ tên model thủ công.',
  'ht.title':'Bài HTML — Pelican đạp xe','ht.idle':'Chạy bài HTML rồi so sánh hai bên.','ht.run':'Đang tạo bằng {model}…','ht.done':'Xong sau {s}s','ht.stopped':'Đã dừng — đang hiển thị phần đã có','ht.err':'Chạy thất bại',
  'ht.prompt':'Đề bài (tiếng Anh)','ht.reset':'Khôi phục mặc định','ht.real':'Thật','ht.refName':'Bản chính hãng','ht.placeholder':'Mẫu tạm','ht.loadRef':'Nạp file tham chiếu','ht.full':'Toàn màn hình',
  'ht.model':'Model','ht.preview':'Xem','ht.source':'Mã nguồn','ht.replay':'Chạy lại cả hai',
  'ht.emptyT':'Đang chờ model của bạn','ht.emptyP':'Bấm “Chạy test HTML”. Trang model tạo ra sẽ hiện ở đây, cạnh bản tham chiếu thật.',
  'ht.genT':'Đang viết trang…','ht.genP':'Đã nhận {n} ký tự. Chuyển sang “Mã nguồn” để xem nó chảy về.',
  'ht.noHtml':'Câu trả lời không chứa HTML. Mở “Mã nguồn” để đọc model đã nói gì.',
+ 'ht.noHtmlT':'Không có HTML trong câu trả lời','ht.noHtmlWhy':'Không tìm thấy HTML trong câu trả lời.','ht.d.finish':'kết thúc: {v}','ht.d.out':'token đầu ra: {v}','ht.d.reason':'suy luận: {v}','ht.d.reply':'câu trả lời: {v} ký tự',
+ 'ht.d.cut':'Model hết token — model suy luận tiêu token vào việc “nghĩ”. Hãy tăng “Max output tokens” ở mục Nâng cao.','ht.d.onlyReason':'Model chỉ suy luận mà chưa trả lời — thử lại hoặc tăng “Max output tokens”.','ht.d.read':'Mở “Mã nguồn” để đọc model đã nói gì.','ht.d.retryErr':'(Thử lại với ngân sách lớn hơn bị lỗi: {e})',
+ 'ht.retry':'Model dùng hết ngân sách để suy nghĩ — thử lại với {n} token…','ht.thinkT':'Đang suy nghĩ…','ht.thinkP':'{n} ký tự suy luận — model suy luận có thể nghĩ khá lâu trước khi viết.','ht.reasonLabel':'suy luận — phần model nghĩ, chưa có câu trả lời cuối','st.reason':'Suy luận',
  'ht.copied':'Đã sao chép code','ht.loaded':'Đã nạp file tham chiếu (chỉ giữ trong bộ nhớ)','ht.truncated':'Output bị cắt do hết giới hạn token — hãy tăng “Max output tokens” ở phần Nâng cao.',
  'st.time':'Thời gian','st.out':'Token đầu ra','st.speed':'Tốc độ','st.size':'Dung lượng','st.finish':'Kết thúc',
  'con.single':'Một file HTML','con.svg':'SVG nội tuyến','con.kf':'CSS @keyframes ×{n}','con.noext':'Không tài nguyên ngoài','con.nojs':'Chỉ CSS (không JS / SMIL)','con.title':'Tự kiểm tra',
@@ -915,9 +947,10 @@ const tr = x => (x && typeof x === 'object' && 'k' in x) ? t(x.k, x.p?.e ? { ...
 function applyI18n(){
   document.documentElement.lang = LANG;
   $$('[data-i18n]').forEach(e => { e.textContent = t(e.dataset.i18n); });
+  $$('[data-i18n-ph]').forEach(e => { e.placeholder = t(e.dataset.i18nPh); });
   $('#langLbl').textContent = LANG.toUpperCase();
   document.title = LANG === 'vi' ? 'ROF AI — Thật hay Giả? Kiểm tra model qua API' : 'ROF AI — Real or Fake? Test any model via API';
-  renderConnPill(); renderProbe(); renderHtmlStatic(); updateModelCount(); renderUrlPreview();
+  renderConnPill(); renderProbe(); renderHtmlStatic(); updateModelCount(); renderUrlPreview(); renderRoute();
 }
 function setLang(l){ LANG = l; store.set('rof.lang', l); applyI18n(); }
 
@@ -963,7 +996,7 @@ function pickProvider(id){
   const p = PROVIDERS.find(x => x.id === id); if (!p) return;
   $('#base').value = p.base; $('#proto').value = p.proto;
   if (p.m) $('#model').value = p.m;
-  $('#modelList').innerHTML = ''; updateModelCount();
+  setModels([]);
   markProvider(); setConn('idle'); persistConn(); renderUrlPreview();
   (p.base ? $('#key') : $('#base')).focus();
 }
@@ -976,7 +1009,7 @@ function markProvider(){
 /* ==========================================================================
    Connection model
    ========================================================================== */
-const SAFE_FIELDS = ['base', 'proto', 'model', 'auth'];       // the API key is NOT in this list, ever
+const SAFE_FIELDS = ['base', 'proto', 'model', 'auth', 'route'];       // the API key is NOT in this list, ever
 function persistConn(){
   const base = $('#base').value.trim();
   if (/[?@#]/.test(base)) return;                              // may carry credentials — don't remember it
@@ -1010,7 +1043,7 @@ function readConn(){
     maxOut: Number.isFinite(mo) && mo > 0 ? mo : null,
     timeoutMs: clamp(parseInt($('#timeout').value, 10) || 240, 10, 1800) * 1000,
     stream: $('#stream').checked,
-    proxy: $('#proxy').value.trim(),
+    route: $('#route').value, upstream: $('#upstream').value.trim(), relayToken: $('#relayToken').value.trim(),
     tokenField: $('#tokenField').value,
     extra: {},
     q: { maxCompletion: proto === 'openai' && /api\.openai\.com/i.test(base) && /(^|\/)(o\d|gpt-?5)/i.test($('#model').value), noTemp: false, noStreamOpts: false, minimal: false }
@@ -1023,7 +1056,6 @@ function validateConn(c, needModel = true){
   if (!c.base) return 'val.base';
   try { new URL(c.base); } catch { return 'val.url'; }
   if (c.badHeaders) return 'val.headers';
-  if (c.proxy){ try { new URL(c.proxy); } catch { return 'val.proxy'; } }
   if (needModel && !c.model) return 'val.model';
   return null;
 }
@@ -1036,7 +1068,9 @@ function errText(e){
   switch (e.kind){
     case 'stopped': return t('err.stopped');
     case 'timeout': return t('err.timeout', { s: Math.round((e.ms || 0) / 1000) });
-    case 'network': return t(e.reachable === true ? 'err.cors' : 'err.network', { url: shortUrl(e.url) });
+    case 'relay': return t('err.relay', { msg: e.detail });
+    case 'relayauth': return t('err.relayAuth');
+    case 'network': return e.relayDown ? t('err.relayDown') : t(e.reachable === true ? 'err.cors' : 'err.network', { url: shortUrl(e.url) });
     case 'config':  return e.detail;
     case 'http': {
       const hint = [401, 403, 404, 429].includes(e.status) ? ' ' + t('err.' + e.status) : '';
@@ -1089,6 +1123,31 @@ function authHeaders(c){
 }
 
 /* ---------- fetch with idle timeout + external abort ---------- */
+/* ---------- relay (node server.mjs): same-origin /api/relay performs the call server-side, optionally through a proxy ---------- */
+const relay = { ok:false, tokenRequired:false, proxy:null, clientProxy:false };
+async function detectRelay(){
+  relay.ok = false;
+  if (!/^https?:$/.test(location.protocol)) return;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 2500);
+  try {
+    const r = await fetch('/api/health', { cache:'no-store', credentials:'same-origin', signal: ctl.signal });
+    const j = r.ok ? await r.json() : null;
+    if (j?.app === 'rof-ai' && j.relay === true) Object.assign(relay, { ok:true, tokenRequired:!!j.tokenRequired, proxy:j.proxy || null, clientProxy:!!j.clientProxy });
+  } catch {} finally { clearTimeout(timer); }
+}
+const routeOf = sel => sel === 'direct' ? 'direct' : sel === 'relay' ? 'relay' : (relay.ok ? 'relay' : 'direct');
+function renderRoute(){
+  const pill = $('#routePill'); if (!pill) return;
+  const sel = $('#route').value, route = routeOf(sel), up = $('#upstream').value.trim();
+  const upLabel = up.replace(/^[a-z0-9]+:\/\//i, '').split('@').pop().split(':').slice(0, 2).join(':');
+  let cls = '', txt;
+  if (route === 'relay' && !relay.ok){ cls = ' bad'; txt = t('route.noRelay'); }
+  else if (route === 'relay' && relay.tokenRequired && !$('#relayToken').value.trim()){ cls = ' bad'; txt = t('route.needToken'); }
+  else if (route === 'relay'){ cls = ' ok'; txt = up ? t('route.relayProxy', { p: upLabel }) : relay.proxy ? t('route.relayProxy', { p: relay.proxy }) : t('route.relay'); }
+  else txt = t('route.direct') + (up ? ' · ' + t('route.proxyIgnored') : '');
+  pill.className = 'status-pill' + cls; $('#routePillTxt').textContent = txt; pill.title = t('route.tip');
+}
+
 async function http(c, url, { method = 'GET', body, signal } = {}){
   const ctl = new AbortController();
   let timedOut = false, timer;
@@ -1103,13 +1162,22 @@ async function http(c, url, { method = 'GET', body, signal } = {}){
     if (signal?.aborted || e?.name === 'AbortError') return new ApiError('stopped');
     return new ApiError('network', one(e?.message));
   };
+  const viaRelay = routeOf(c.route) === 'relay';
   try {
-    const res = await fetch(c.proxy ? c.proxy.replace(/\/+$/, '') + '/' + url : url, {
-      method, signal: ctl.signal, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
-      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...authHeaders(c) },
-      body: body ? JSON.stringify(body) : undefined
-    });
+    if (viaRelay && !relay.ok){ done(); throw new ApiError('config', t('err.norelay')); }
+    const headers = { ...(body ? { 'Content-Type': 'application/json' } : {}), ...authHeaders(c) };
+    const res = viaRelay
+      ? await fetch('/api/relay', {
+          method: 'POST', signal: ctl.signal, credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'X-ROF-Client': '1', ...(c.relayToken ? { 'X-ROF-Token': c.relayToken } : {}) },
+          body: JSON.stringify({ url, method, headers, body: body ? JSON.stringify(body) : null, proxy: c.upstream || undefined })
+        })
+      : await fetch(url, { method, signal: ctl.signal, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers, body: body ? JSON.stringify(body) : undefined });
     arm();
+    if (viaRelay && res.headers.get('x-rof-relay-error')){          // the relay itself failed (bad proxy login, blocked target, …) — not the provider
+      let msg = ''; try { msg = (await res.json())?.error?.message || ''; } catch {}
+      done(); throw new ApiError(res.status === 401 ? 'relayauth' : 'relay', msg, { status: res.status, url });
+    }
     if (!res.ok){
       let text = ''; try { text = await res.text(); } catch {}
       let detail = text; try { const j = JSON.parse(text); detail = j?.error?.message || (typeof j?.error === 'string' ? j.error : '') || j?.message || j?.detail || text; } catch {}
@@ -1119,7 +1187,7 @@ async function http(c, url, { method = 'GET', body, signal } = {}){
   } catch (e){
     if (e instanceof ApiError) throw e;
     const err = fail(e);
-    if (err.kind === 'network'){ err.url = url; err.reachable = await probeReach(c.proxy || url); }
+    if (err.kind === 'network'){ err.url = url; if (viaRelay) err.relayDown = true; else err.reachable = await probeReach(url); }
     throw err;
   }
 }
@@ -1157,7 +1225,7 @@ function buildBody(c, o){
   return b;
 }
 function parseFull(c, j){
-  const r = { text:'', reasoning:'', in:null, out:null, finish:null, model:null, id:null };
+  const r = { text:'', reasoning:'', rtok:null, in:null, out:null, finish:null, model:null, id:null };
   if (c.proto === 'openai'){
     const ch = j?.choices?.[0];
     if (!ch && j?.error) throw new ApiError('http', j.error.message || JSON.stringify(j.error), { status: j.error.code || 200 });
@@ -1166,6 +1234,7 @@ function parseFull(c, j){
     r.finish = ch?.finish_reason ?? null; r.model = j?.model ?? null; r.id = j?.id ?? null;
     r.in = j?.usage?.prompt_tokens ?? j?.usage?.input_tokens ?? null;
     r.out = j?.usage?.completion_tokens ?? j?.usage?.output_tokens ?? null;
+    r.rtok = j?.usage?.completion_tokens_details?.reasoning_tokens ?? null;
   } else if (c.proto === 'anthropic'){
     r.text = (j?.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     const u = j?.usage;
@@ -1177,6 +1246,7 @@ function parseFull(c, j){
     const u = j?.usageMetadata;
     r.in = u?.promptTokenCount ?? null;
     r.out = u ? (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) : null;
+    r.rtok = u?.thoughtsTokenCount ?? null;
     r.finish = cand?.finishReason ?? (j?.promptFeedback?.blockReason ? 'BLOCKED:' + j.promptFeedback.blockReason : null);
     r.model = j?.modelVersion ?? null; r.id = j?.responseId ?? null;
   }
@@ -1213,7 +1283,7 @@ async function chatOnce(c, o){
   const url = endpointFor(c, 'chat', { stream: o.stream });
   const { res, touch, done, fail } = await http(c, url, { method:'POST', body: buildBody(c, o), signal: o.signal });
   const ctype = res.headers.get('content-type') || '';
-  const out = { text:'', reasoning:'', in:null, out:null, finish:null, model:null, id:null, ms:0, ttfb:null, ctype,
+  const out = { text:'', reasoning:'', rtok:null, in:null, out:null, finish:null, model:null, id:null, ms:0, ttfb:null, ctype,
                 streamed:false, events:0, done:false, term:false, times:[] };
   try {
     if (o.stream && /text\/event-stream|ndjson/i.test(ctype) || (o.stream && !/json/i.test(ctype) && res.body)){
@@ -1228,24 +1298,31 @@ async function chatOnce(c, o){
           out.id ??= j.id; out.model ??= j.model;
           const ch = j.choices?.[0], d = ch?.delta;
           const piece = contentOf(d?.content);
-          if (d?.reasoning_content || d?.reasoning) out.reasoning += d.reasoning_content || d.reasoning;
-          if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece); }
+          const rpiece = d?.reasoning_content || d?.reasoning || '';
+          if (rpiece){ out.reasoning += rpiece; o.onDelta?.(out.text, '', out); }
+          if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece, out); }
           if (ch?.finish_reason) out.finish = ch.finish_reason;
-          if (j.usage){ out.in = j.usage.prompt_tokens ?? j.usage.input_tokens ?? out.in; out.out = j.usage.completion_tokens ?? j.usage.output_tokens ?? out.out; }
+          if (j.usage){ out.in = j.usage.prompt_tokens ?? j.usage.input_tokens ?? out.in; out.out = j.usage.completion_tokens ?? j.usage.output_tokens ?? out.out; out.rtok = j.usage.completion_tokens_details?.reasoning_tokens ?? out.rtok; }
         } else if (c.proto === 'anthropic'){
           const type = j.type || event;
           if (type === 'message_start'){ out.id = j.message?.id; out.model = j.message?.model; const u = j.message?.usage; if (u) out.in = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0); }
-          else if (type === 'content_block_delta'){ const piece = j.delta?.type === 'text_delta' ? (j.delta.text || '') : ''; if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece); } }
+          else if (type === 'content_block_delta'){
+            if (j.delta?.type === 'thinking_delta'){ out.reasoning += j.delta.thinking || ''; o.onDelta?.(out.text, '', out); }
+            const piece = j.delta?.type === 'text_delta' ? (j.delta.text || '') : ''; if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece, out); }
+          }
           else if (type === 'message_delta'){ if (j.delta?.stop_reason) out.finish = j.delta.stop_reason; if (j.usage?.output_tokens != null) out.out = j.usage.output_tokens; if (j.usage?.input_tokens != null && out.in == null) out.in = j.usage.input_tokens; }
           else if (type === 'message_stop'){ out.term = true; }
           else if (type === 'error'){ throw new ApiError('http', j.error?.message || 'stream error', { status: 200 }); }
         } else {
           const cand = j.candidates?.[0];
-          const piece = (cand?.content?.parts || []).filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
-          if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece); }
+          const parts = cand?.content?.parts || [];
+          const thought = parts.filter(p => p.thought && typeof p.text === 'string').map(p => p.text).join('');
+          if (thought){ out.reasoning += thought; o.onDelta?.(out.text, '', out); }
+          const piece = parts.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
+          if (piece){ out.text += piece; mark(piece.length); o.onDelta?.(out.text, piece, out); }
           if (cand?.finishReason) out.finish = cand.finishReason;
           if (j.modelVersion) out.model = j.modelVersion;
-          if (j.usageMetadata){ out.in = j.usageMetadata.promptTokenCount ?? out.in; out.out = (j.usageMetadata.candidatesTokenCount ?? 0) + (j.usageMetadata.thoughtsTokenCount ?? 0); }
+          if (j.usageMetadata){ out.in = j.usageMetadata.promptTokenCount ?? out.in; out.out = (j.usageMetadata.candidatesTokenCount ?? 0) + (j.usageMetadata.thoughtsTokenCount ?? 0); out.rtok = j.usageMetadata.thoughtsTokenCount ?? out.rtok; }
         }
       }, touch);
       if (c.proto === 'gemini') out.term = true;              // Gemini ends the stream without a sentinel
@@ -1253,7 +1330,7 @@ async function chatOnce(c, o){
       const j = await res.json();
       Object.assign(out, parseFull(c, j));
       if (o.stream) out.streamed = false;
-      if (out.text) o.onDelta?.(out.text, out.text);
+      if (out.text) o.onDelta?.(out.text, out.text, out);
     }
   } catch (e){
     done();
@@ -1266,12 +1343,18 @@ async function chatOnce(c, o){
 }
 /* retry on known provider quirks and on opaque failures (wrong path, strict servers) */
 async function chat(c, o){
+  let opts = o, clamped = false;
   for (let i = 0; i < 6; i++){
-    try { return await chatOnce(c, o); }
+    try { return await chatOnce(c, opts); }
     catch (e){
       if (!(e instanceof ApiError)) throw e;
       if (e.kind === 'http' && [400, 422].includes(e.status)){
         const m = String(e.detail).toLowerCase();
+        if (!clamped && /max_tokens|max_completion_tokens|maxoutputtokens|output tokens/.test(m) && /range|maximum|at most|less than|exceed|too large|must be/.test(m)){
+          // the provider caps output lower than we asked (e.g. "valid range of max_tokens is [1, 8192]"): use its cap
+          const cap = [...m.matchAll(/\d[\d,]*/g)].map(x => +x[0].replace(/,/g, '')).filter(n => n >= 256 && n < opts.maxTokens).sort((a, b) => b - a)[0];
+          if (cap){ opts = { ...opts, maxTokens: cap }; clamped = true; continue; }
+        }
         if (c.proto === 'openai' && c.tokenField === 'auto' && !c.q.maxCompletion && /max_completion_tokens/.test(m)){ c.q.maxCompletion = true; continue; }
         if (c.proto === 'openai' && c.tokenField === 'auto' && c.q.maxCompletion && /max_tokens/.test(m) && !/max_completion/.test(m)){ c.q.maxCompletion = false; continue; }
         if (!c.q.noTemp && /temperature|top_p/.test(m)){ c.q.noTemp = true; continue; }
@@ -1283,7 +1366,7 @@ async function chat(c, o){
       throw e;
     }
   }
-  return chatOnce(c, o);
+  return chatOnce(c, opts);
 }
 
 async function fetchModels(c){
@@ -1316,7 +1399,35 @@ function renderUrlPreview(){
     el.innerHTML = `<i>${esc(t('f.chatCall'))}</i> → <b>POST</b> ${esc(shortUrl(endpointFor(c, 'chat')))}<br><i>${esc(t('f.modelsCall'))}</i> → <b>GET</b> ${esc(shortUrl(endpointFor(c, 'models')))}`;
   } catch { el.textContent = ''; }
 }
-function updateModelCount(){ const n = $('#modelList').options.length; $('#modelCount').textContent = n ? t('models.n', { n }) : ''; }
+/* model picker — a real list that always shows every model (a <datalist> hides everything that doesn't match the field's text) */
+const modelBox = { items: [], shown: [], active: -1 };
+function updateModelCount(){ const n = modelBox.items.length; $('#modelCount').textContent = n ? t('models.n', { n }) : ''; }
+function setModels(ids){ modelBox.items = ids; updateModelCount(); closeModels(); }
+function renderModelList(){
+  const q = $('#modelSearch').value.trim().toLowerCase(), cur = $('#model').value.trim();
+  modelBox.shown = modelBox.items.filter(m => !q || m.toLowerCase().includes(q));
+  if (modelBox.active >= modelBox.shown.length) modelBox.active = -1;
+  $('#modelItems').innerHTML = modelBox.shown.length
+    ? modelBox.shown.map((m, i) => `<button type="button" role="option" class="combo-item${m === cur ? ' cur' : ''}${i === modelBox.active ? ' act' : ''}" data-i="${i}" aria-selected="${m === cur}">${esc(m)}</button>`).join('')
+    : `<div class="combo-empty">${esc(t('models.noMatch'))}</div>`;
+}
+function openModels(){
+  if (!modelBox.items.length) return;
+  $('#modelSearch').value = ''; modelBox.active = -1; renderModelList();
+  $('#modelPop').hidden = false; $('#model').setAttribute('aria-expanded', 'true');
+  $('#modelItems').querySelector('.cur')?.scrollIntoView({ block:'center' });
+  $('#modelSearch').focus();
+}
+function closeModels(){ $('#modelPop').hidden = true; $('#model').setAttribute('aria-expanded', 'false'); }
+function pickModel(m){
+  const f = $('#model'); f.value = m; f.dispatchEvent(new Event('input', { bubbles:true })); f.dispatchEvent(new Event('change', { bubbles:true }));
+  closeModels(); f.focus();
+}
+async function toggleModels(){
+  if (!$('#modelPop').hidden) return closeModels();
+  if (!modelBox.items.length) return doFetchModels(true);
+  openModels();
+}
 
 async function doTestConn(){
   const c = readConn(); const bad = validateConn(c); if (bad) return toast(t(bad), 'bad');
@@ -1327,15 +1438,14 @@ async function doTestConn(){
   } catch (e){ setConn('bad', { msg: trunc(errText(e), 140) }); toast(errText(e), 'bad'); }
   finally { btn.disabled = false; }
 }
-async function doFetchModels(){
+async function doFetchModels(open = true){
   const c = readConn(); const bad = validateConn(c, false); if (bad) return toast(t(bad), 'bad');
   const btn = $('#fetchModels'); btn.disabled = true;
   try {
     const ids = await fetchModels(c);
-    $('#modelList').innerHTML = ids.map(id => `<option value="${esc(id)}"></option>`).join('');
-    updateModelCount();
+    setModels(ids);
     toast(ids.length ? t('models.loaded', { n: ids.length }) : t('models.none'), ids.length ? 'ok' : '');
-    if (ids.length) { const m = $('#model'); if (!m.value) m.focus(); }
+    if (ids.length && open !== false) openModels();
   } catch (e){ toast(errText(e), 'bad'); }
   finally { btn.disabled = false; }
 }
@@ -1385,7 +1495,7 @@ const CHECKS = [
  { id:'handshake', grp:'conn', w:3, run: async x => {
     const r = await ask(x, { user:'Reply with only: OK', maxTokens:16 });
     x.s.A = r;
-    const facts = [['f.latency', fmtMs(r.ms)], ['f.respModel', r.model || '—'], ['f.respId', r.id || '—'], ['f.protocol', x.c.proto], ['f.host', new URL(x.c.base).host], ['f.reply', trunc(one(r.text), 120) || '—']];
+    const facts = [['f.latency', fmtMs(r.ms)], ['f.respModel', r.model || '—'], ['f.respId', r.id || '—'], ['f.protocol', x.c.proto], ['f.route', routeOf(x.c.route)], ['f.host', new URL(x.c.base).host], ['f.reply', trunc(one(r.text), 120) || '—']];
     if (!r.text.trim() && !(r.out > 0)) return { status:'warn', sum:M('sum.hs.empty'), facts };
     if (r.ms > 20000) return { status:'warn', sum:M('sum.hs.slow', { ms:fmtMs(r.ms) }), facts };
     return { status:'pass', sum:M('sum.hs.ok', { ms:fmtMs(r.ms) }), facts };
@@ -1646,7 +1756,7 @@ function downloadReport(){
    ========================================================================== */
 const DEFAULT_PROMPT = 'Write a single HTML file containing an SVG animation: a cartoon pelican in white / pale yellow, with a large throat pouch, riding a bicycle with spoked wheels. The wheels spin, the legs pedal, and the background scrolls backwards to simulate forward motion. Use only CSS keyframes, with no external libraries.';
 const FRAME_CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
-const html = { running:false, ctl:null, ref:'', refName:'', refPlaceholder:false, out:'', raw:'', view:'prev', phase:'idle', res:null, err:'', model:'', replayN:0 };
+const html = { running:false, reasoning:'', diag:null, retryErr:'', live:{ chars:0, reasoning:0 }, ctl:null, ref:'', refName:'', refPlaceholder:false, out:'', raw:'', view:'prev', phase:'idle', res:null, err:'', model:'', replayN:0 };
 
 function frameDoc(src, n = 0){
   const meta = `<meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}">`;
@@ -1705,8 +1815,9 @@ function setOverlay(kind){
   o.hidden = false; o.className = 'ovl' + (kind === 'err' ? ' err' : '');
   const m = {
     idle: ['code', t('ht.emptyT'), t('ht.emptyP')],
-    gen:  ['bike', t('ht.genT'), t('ht.genP', { n: fmtNum(html.raw.length) })],
-    nohtml: ['alert', t('ht.err'), t('ht.noHtml')],
+    gen:  html.live?.reasoning && !html.live.chars ? ['bike', t('ht.thinkT'), t('ht.thinkP', { n: fmtNum(html.live.reasoning) })]
+                                                   : ['bike', t('ht.genT'), t('ht.genP', { n: fmtNum(html.raw.length) })],
+    nohtml: ['alert', t('ht.noHtmlT'), diagText()],
     err:  ['alert', t('ht.err'), html.err]
   }[kind];
   o.innerHTML = `<div class="big">${ico(m[0])}</div><b>${esc(m[1])}</b><p>${esc(m[2])}</p>`;
@@ -1718,7 +1829,7 @@ function renderOutput(){
   const has = !!html.out;
   fr.hidden = showCode || !has;
   pre.hidden = !showCode;
-  if (showCode){ pre.textContent = html.raw || html.out || ''; }
+  if (showCode){ pre.textContent = sourceText(); }
   if (html.phase === 'idle') setOverlay(showCode ? null : 'idle');
   else if (html.phase === 'running') setOverlay(showCode ? null : 'gen');
   else if (html.phase === 'error') setOverlay(showCode && html.raw ? null : 'err');
@@ -1745,7 +1856,7 @@ function renderHtmlStatic(){
     const outTok = r.out ?? Math.round(html.raw.length / 3.6);
     const speed = r.ms ? (outTok / (r.ms / 1000)).toFixed(1) + ' tok/s' : '—';
     stats.hidden = false;
-    stats.innerHTML = [[t('st.time'), (r.ms / 1000).toFixed(1) + ' s'], [t('st.out'), (r.out != null ? '' : '≈ ') + fmtNum(outTok)], [t('st.speed'), speed], [t('st.size'), (new Blob([html.out]).size / 1024).toFixed(1) + ' KB'], [t('st.finish'), r.finish || '—']]
+    stats.innerHTML = [[t('st.time'), (r.ms / 1000).toFixed(1) + ' s'], [t('st.out'), (r.out != null ? '' : '≈ ') + fmtNum(outTok)], [t('st.speed'), speed], ...(r.rtok != null || html.reasoning ? [[t('st.reason'), r.rtok != null ? fmtNum(r.rtok) : '≈ ' + fmtNum(Math.round(html.reasoning.length / 3.6))]] : []), [t('st.size'), (new Blob([html.out]).size / 1024).toFixed(1) + ' KB'], [t('st.finish'), r.finish || '—']]
       .map(([k, v]) => `<div class="stat"><small>${esc(k)}</small><b title="${esc(v)}">${esc(v)}</b></div>`).join('');
   } else stats.hidden = true;
   const cons = $('#htCons');
@@ -1755,31 +1866,63 @@ function renderHtmlStatic(){
   } else cons.innerHTML = '';
   renderOutput();
 }
+const CUT = /length|max_tokens|MAX_TOKENS/i;
+function sourceText(){
+  return html.raw || (html.reasoning ? `/* ${t('ht.reasonLabel')} */\n${html.reasoning}` : '') || html.out || '';
+}
+function diagText(){
+  const d = html.diag; if (!d) return t('ht.noHtml');
+  const bits = [t('ht.d.finish', { v: d.finish || '—' }), t('ht.d.out', { v: d.out == null ? '—' : fmtNum(d.out) })];
+  if (d.rchars || d.rtok) bits.push(t('ht.d.reason', { v: d.rtok != null ? fmtNum(d.rtok) + ' tok' : fmtNum(d.rchars) + ' chars' }));
+  bits.push(t('ht.d.reply', { v: fmtNum(d.chars) }));
+  let msg = t('ht.noHtmlWhy') + ' ' + bits.join(' · ') + '.';
+  if (CUT.test(d.finish || '')) msg += ' ' + t('ht.d.cut');
+  else if (!d.chars && d.rchars) msg += ' ' + t('ht.d.onlyReason');
+  else if (d.chars) msg += ' ' + t('ht.d.read');
+  if (html.retryErr) msg += ' ' + t('ht.d.retryErr', { e: html.retryErr });
+  return msg;
+}
 async function runHtml(){
   if (busy) return;
   const c = readConn(); const bad = validateConn(c); if (bad) return toast(t(bad), 'bad');
   const prompt = $('#htPrompt').value.trim(); if (!prompt) return;
   persistConn(); showTab('html');
-  Object.assign(html, { phase:'running', raw:'', out:'', err:'', res:null, model:c.model, view: html.view });
+  Object.assign(html, { phase:'running', raw:'', reasoning:'', out:'', err:'', res:null, diag:null, retryErr:'', model:c.model, live:{ chars:0, reasoning:0 } });
   html.ctl = new AbortController(); setBusy('html'); renderHtmlStatic(); renderRef();
   $('#htPrompt').scrollIntoView({ block:'nearest' });
-  let last = 0;
   const t0 = performance.now();
-  const maxTokens = c.maxOut || (reasoningLike(c.model) ? 32000 : 8000);
+  let last = 0, budget = c.maxOut || (reasoningLike(c.model) ? 32000 : 16000), attempt = 0, r = null, prev = null;
+  const onDelta = (text, piece, o) => {
+    html.raw = text; if (o) html.reasoning = o.reasoning;
+    html.live = { chars: text.length, reasoning: (o?.reasoning || '').length };
+    const now = performance.now();
+    if (now - last > 120){
+      last = now;
+      if (html.view === 'code'){ const pre = $('#outCode'); pre.textContent = sourceText(); pre.scrollTop = pre.scrollHeight; } else setOverlay('gen');
+    }
+  };
   try {
-    const r = await chat(c, { user:prompt, maxTokens, temperature:c.temperature, stream:c.stream, signal:html.ctl.signal,
-      onDelta: text => {
-        html.raw = text;
-        const now = performance.now();
-        if (now - last > 120){ last = now; if (html.view === 'code'){ const pre = $('#outCode'); pre.textContent = text; pre.scrollTop = pre.scrollHeight; } else setOverlay('gen'); }
-      } });
-    html.res = r; html.raw = r.text; html.phase = 'done';
+    for (;;){
+      r = await chat(c, { user:prompt, maxTokens:budget, temperature:c.temperature, stream:c.stream, signal:html.ctl.signal, onDelta });
+      html.raw = r.text; html.reasoning = r.reasoning || '';
+      // a reasoning model can spend the whole budget thinking and never answer: retry once with a much larger budget
+      if (extractHtml(r.text) || !CUT.test(r.finish || '') || c.maxOut || attempt >= 1 || budget >= 64000) break;
+      attempt++; prev = r; budget = Math.min(budget * 4, 64000);
+      toast(t('ht.retry', { n: fmtNum(budget) }));
+      html.raw = ''; html.reasoning = ''; html.live = { chars:0, reasoning:0 };
+    }
+    html.res = r; html.phase = 'done';
   } catch (e){
-    if (e instanceof ApiError && e.kind === 'stopped' && e.partial?.text){ html.res = { ...e.partial, ms: performance.now() - t0 }; html.raw = e.partial.text; html.phase = 'stopped'; }
-    else { html.phase = 'error'; html.err = errText(e); if (e.partial?.text) html.raw = e.partial.text; }
+    if (e instanceof ApiError && e.kind === 'stopped'){
+      const pr = e.partial || {}; html.res = { ...pr, ms: performance.now() - t0 }; html.raw = pr.text || ''; html.reasoning = pr.reasoning || ''; html.phase = 'stopped';
+    } else if (prev){
+      html.res = prev; html.raw = prev.text; html.reasoning = prev.reasoning || ''; html.phase = 'done'; html.retryErr = errText(e);
+    } else { html.phase = 'error'; html.err = errText(e); if (e.partial?.text) html.raw = e.partial.text; if (e.partial?.reasoning) html.reasoning = e.partial.reasoning; }
   }
   html.ctl = null;
   html.out = extractHtml(html.raw);
+  const rs = html.res || {};
+  html.diag = { finish: rs.finish, out: rs.out, rtok: rs.rtok, rchars: (html.reasoning || '').length, chars: (html.raw || '').length };
   if (html.out) replayBoth();                       // restart both sides together so the animations are in sync
   setBusy(null); renderHtmlStatic();
 }
@@ -1818,11 +1961,13 @@ function init(){
   restoreConn();
   $('#htPrompt').value = DEFAULT_PROMPT;
   loadReference();
-  applyI18n(); markProvider(); showTab('probe'); renderHtmlStatic();
+  applyI18n(); markProvider(); showTab('probe'); renderHtmlStatic(); renderRoute();
+  detectRelay().finally(renderRoute);
 
   $('#langBtn').addEventListener('click', () => setLang(LANG === 'en' ? 'vi' : 'en'));
   $('#themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
   $('#base').addEventListener('input', () => { markProvider(); setConn('idle'); renderUrlPreview(); });
+  for (const id of ['route', 'upstream', 'relayToken']){ $('#' + id).addEventListener('input', renderRoute); $('#' + id).addEventListener('change', () => { renderRoute(); persistConn(); }); }
   for (const id of ['proto', 'model']) $('#' + id).addEventListener('input', renderUrlPreview);
   $('#base').addEventListener('change', persistConn);
   for (const id of ['proto', 'model', 'auth']) $('#' + id).addEventListener('change', persistConn);
@@ -1832,7 +1977,18 @@ function init(){
     $('#eye').innerHTML = ico(show ? 'eyeoff' : 'eye');
   });
   $('#testConn').addEventListener('click', doTestConn);
-  $('#fetchModels').addEventListener('click', doFetchModels);
+  $('#fetchModels').addEventListener('click', () => doFetchModels(true));
+  $('#modelToggle').addEventListener('click', toggleModels);
+  $('#modelSearch').addEventListener('input', () => { modelBox.active = -1; renderModelList(); });
+  $('#modelSearch').addEventListener('keydown', e => {
+    const n = modelBox.shown.length;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); if (!n) return; modelBox.active = (modelBox.active + (e.key === 'ArrowDown' ? 1 : -1) + n) % n; renderModelList(); $('#modelItems').querySelector('.act')?.scrollIntoView({ block:'nearest' }); }
+    else if (e.key === 'Enter'){ e.preventDefault(); const m = modelBox.shown[modelBox.active >= 0 ? modelBox.active : 0]; if (m) pickModel(m); }
+    else if (e.key === 'Escape'){ closeModels(); $('#model').focus(); }
+  });
+  $('#model').addEventListener('keydown', e => { if (e.key === 'ArrowDown' && modelBox.items.length){ e.preventDefault(); openModels(); } else if (e.key === 'Escape') closeModels(); });
+  $('#modelItems').addEventListener('click', e => { const b = e.target.closest('.combo-item'); if (b) pickModel(modelBox.shown[+b.dataset.i]); });
+  document.addEventListener('mousedown', e => { if (!$('#modelPop').hidden && !e.target.closest('#modelCombo')) closeModels(); });
   $('#runProbe').addEventListener('click', () => { runProbe(); scrollToResults(); });
   $('#runHtml').addEventListener('click', () => { runHtml(); scrollToResults(); });
   $('#prStop').addEventListener('click', stopProbe);
