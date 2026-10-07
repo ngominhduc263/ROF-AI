@@ -92,14 +92,20 @@ from answers, and logs only `METHOD host/path → status` — never keys, bodies
 ## The genuine reference (per model)
 
 The left pane shows the genuine sample of **the model you selected**. Samples live in `<script type="application/json" id="rof-reference-pool">` (schema `rof-reference-pool/2`):
-one entry per model, each with a `match` list of regular expressions tested against the Model field. Today there is one entry, **LUNA 6.0** (`openai/gpt-6-luna`, three genuine runs);
-for any other model the pane says **"No comparison sample yet"**.
+one entry per model, each with a `match` list of regular expressions tested against the Model field. Today there are two: **LUNA 6.0** (`openai/gpt-6-luna`, 3 genuine runs) and **DeepSeek V4.1 Flash** (9 genuine runs, DSH harness). An entry can also list `official` hosts: on DeepSeek's own API
+(`api.deepseek.com`) there are only two lines, flash and pro, so any "flash" id matches; on other vendors only a name that says 4.1 flash does. For any other model the pane says **"No comparison sample yet"**.
 
 Only the `displayed` round of an entry is shown (the best one: passes every check and renders correctly). Every other run and round — including the ones that failed the automatic
 checks — stays in the background, never displayed, with the HTML, checks, measurements and token usage (input / output / reasoning), so thinking budget and code can be compared
 across genuine runs. A genuine model sometimes fails the checks, and a page that passes proves nothing by itself; a handful of samples per model is too few to judge from (aim for ~10).
 
 To add a model, append an entry to `entries`. *Load reference file* replaces the pane temporarily (memory only) until the model changes.
+
+## Measuring in a background tab
+
+A background browser tab gives iframes no viewport at all, so every page sized with `vw`/`vh` measures as an empty 0×0 SVG with no animations — a false failure that made agents
+"repair" pages that were fine (all nine DeepSeek runs used their full 30 calls partly because of it). ROF now reads the frame's real size, waits for the tab to become visible, and
+otherwise reports **"not measured"** instead of "failed" (the agent is told it is not a defect of its page). Keep the ROF tab visible while a test runs for the layout checks to count.
 
 ## Notes
 
