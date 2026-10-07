@@ -16,6 +16,8 @@ an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limit
 
 **1. Static (no server).** Open `index.html` in a normal browser tab, or host it on any static host.
 Calls go straight from the browser, so the provider must allow CORS. Preview panes/sandboxes block outside requests.
+Some gateways answer **403 to every `Origin` except their own site and `http://localhost`** (ShareLLM does this, verified):
+a page opened from a file (`Origin: null`) or hosted on another domain can never call them — use the relay below.
 
 **2. With the relay (recommended when CORS or a proxy is a problem).**
 
@@ -25,7 +27,7 @@ PROXY=host:port:user:pass node server.mjs
 PROXY=socks5://host:port:user:pass node server.mjs
 ```
 
-Open the page from the relay's address. The page detects it and routes API calls through `/api/relay`
+Open the page from the relay's address (`http://localhost:8787`; the relay's own requests carry no `Origin`, so Origin-restricted gateways such as ShareLLM work). The page detects it and routes API calls through `/api/relay`
 (*Advanced → Connection route*: Auto / Direct / Via relay). The relay forwards the call server-side and streams the answer back,
 so CORS never applies. You can also type the proxy into the page (*Advanced → Upstream proxy*, kept in memory only).
 
@@ -66,5 +68,8 @@ You can also try a file without editing the source via the **Load reference file
   base URL, and a URL that already ends with it is called verbatim. Nothing else (no `/v1`) is ever inserted; the exact URLs are
   shown under the field. If a strict relay refuses the response, the request is retried once with a bare-bones body
   (no `temperature` / `stream_options`).
+- The HTML test sends **no practical output limit**: it asks for 131,072 tokens and, if the provider rejects that (OpenAI, Anthropic,
+  Gemini, OpenRouter credit limits, …), steps down automatically to the cap it names (or halves until accepted). Type a number into
+  *Max output tokens* to force a limit, or choose *Don't send a limit* to omit the field (OpenAI format).
 - The model picker always lists every model returned by the endpoint (with search), regardless of what is typed in the field.
 - Results are heuristic: passing every check does not prove a relay is clean.

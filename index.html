@@ -404,7 +404,7 @@ footer b{color:var(--muted);font-family:var(--display)}
         <div class="field c3"><label for="temp"><span data-i18n="adv.temp"></span></label>
           <input class="input mono" id="temp" type="number" min="0" max="2" step="0.1" placeholder="default"></div>
         <div class="field c3"><label for="maxout"><span data-i18n="adv.maxout"></span></label>
-          <input class="input mono" id="maxout" type="number" min="256" step="256" placeholder="auto"></div>
+          <input class="input mono" id="maxout" type="number" min="256" step="256" data-i18n-ph="adv.maxoutPh"></div>
         <div class="field c3"><label for="timeout"><span data-i18n="adv.timeout"></span></label>
           <input class="input mono" id="timeout" type="number" min="10" step="10" value="240"></div>
         <div class="field c6"><label for="headers"><span data-i18n="adv.headers"></span></label>
@@ -788,7 +788,7 @@ en: {
  'f.model':'Model',
  'proto.auto':'Auto-detect','proto.openai':'OpenAI-compatible (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Fetch models','btn.test':'Test connection','btn.stop':'Stop','btn.report':'Download report','btn.download':'Download .html','btn.copy':'Copy code',
- 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.route':'Connection route','adv.routeAuto':'Auto (relay if available)','adv.routeDirect':'Direct from browser','adv.routeRelay':'Via ROF relay','adv.upstream':'Upstream proxy','adv.upstreamHint':'host:port:user:pass · relay only','adv.token':'Relay token','adv.tok':'Output-limit parameter (OpenAI format)','adv.tokAuto':'Auto','adv.tokOmit':'Don’t send a limit','adv.stream':'Stream the HTML test',
+ 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.maxoutPh':'unlimited','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.route':'Connection route','adv.routeAuto':'Auto (relay if available)','adv.routeDirect':'Direct from browser','adv.routeRelay':'Via ROF relay','adv.upstream':'Upstream proxy','adv.upstreamHint':'host:port:user:pass · relay only','adv.token':'Relay token','adv.tok':'Output-limit parameter (OpenAI format)','adv.tokAuto':'Auto','adv.tokOmit':'Don’t send a limit','adv.stream':'Stream the HTML test',
  'pick.title':'Choose a test','pick.sub':'Two ways to catch a fake. Run either, or both.',
  'probe.tag':'BazaarLink-style','probe.name':'Probe test','probe.desc':'12 quick checks that expose model swaps, hidden prompts, inflated token counts, tampered output and fake streaming.',
  'probe.m1':'~11 requests','probe.m2':'~20–60 s','probe.m3':'~7k tokens','probe.run':'Run probe test',
@@ -835,7 +835,7 @@ en: {
  'f.inTok':'Input tokens','f.outTok':'Output tokens','f.baseline':'Baseline input','f.big':'Big prompt input','f.delta':'Delta','f.expected':'Expected','f.ratio':'Ratio','f.finish':'Finish reason','f.limit':'Limit','f.chars':'Characters','f.sent':'Sent','f.received':'Received',
  'f.found':'Secrets found','f.events':'Stream events','f.ttfb':'First byte','f.spread':'Time spread','f.ctype':'Content-type','f.term':'Terminator','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'User message','f.answers':'Answers','f.score':'Score','f.yes':'yes','f.no':'no','f.unknown':'unknown',
  'err.network':'The browser got no readable response from {url}. Likely causes: the server doesn’t allow browser (CORS) calls — a firewall or Cloudflare challenge answering 403 looks identical —, a wrong URL, TLS/network trouble, or this page sits in a preview pane that blocks outside requests (open the file in a normal browser tab). Running “node server.mjs” avoids CORS altogether.',
- 'err.cors':'The server answered, but the browser refused to hand over the response: it sends no CORS headers for browser calls (a firewall/Cloudflare 403 or a 404 without CORS headers looks the same), or the URL is wrong. Tried: {url}',
+ 'err.cors':'The server answered, but the browser refused to hand over the response. Usual causes: it sends no CORS headers for browser calls — some gateways (e.g. ShareLLM) answer 403 to every Origin except their own site and http://localhost, and a page opened from a file sends “Origin: null” — or the URL is wrong. Fix: run “node server.mjs” and open http://localhost:8787. Tried: {url}',
  'err.timeout':'Timed out after {s}s with no data.','err.stopped':'Stopped by you.','err.config':'{msg}',
  'err.401':'Unauthorized — check the API key and auth header.','err.403':'Forbidden — the key lacks access, or the provider blocks browser requests.','err.404':'Not found — check the base URL and model name.','err.429':'Rate limited or out of quota.',
  'val.base':'Enter the API base URL first.','val.model':'Enter a model name (or fetch the list).','val.headers':'Extra headers must be valid JSON, e.g. {"X-Foo":"bar"}.','val.url':'That doesn’t look like a valid URL.','route.direct':'Direct from browser','route.relay':'Via ROF relay','route.relayProxy':'Via relay · proxy {p}','route.noRelay':'Relay not found','route.proxyIgnored':'proxy ignored (needs the relay)','route.needToken':'Relay needs a token','route.tip':'How API calls leave this page: straight from your browser (CORS applies) or through the local ROF relay (node server.mjs), which can use a proxy.',
@@ -848,9 +848,9 @@ en: {
  'ht.genT':'Writing the page…','ht.genP':'{n} characters so far. Switch to “Source” to watch it stream in.',
  'ht.noHtml':'The reply contained no HTML. Open “Source” to read what the model said.',
  'ht.noHtmlT':'No HTML in the reply','ht.noHtmlWhy':'No HTML found in the reply.','ht.d.finish':'finish: {v}','ht.d.out':'output tokens: {v}','ht.d.reason':'reasoning: {v}','ht.d.reply':'reply: {v} chars',
- 'ht.d.cut':'The model ran out of tokens — reasoning models spend them thinking. Raise “Max output tokens” in Advanced.','ht.d.onlyReason':'The model produced only reasoning and no answer — try again or raise “Max output tokens”.','ht.d.read':'Open “Source” to read what it said.','ht.d.retryErr':'(Retry with a larger budget failed: {e})',
+ 'ht.d.cut':'The model hit the output limit you set — clear “Max output tokens” in Advanced to remove it.','ht.d.cap':'The provider caps this model’s output at {n} tokens, which was used up — that is the most it will write.','ht.d.onlyReason':'The model produced only reasoning and no answer — try again.','ht.d.read':'Open “Source” to read what it said.','ht.d.retryErr':'(Retry with a larger budget failed: {e})',
  'ht.retry':'The model used its whole budget thinking — retrying with {n} tokens…','ht.thinkT':'Thinking…','ht.thinkP':'{n} characters of reasoning so far — reasoning models can think for a while before they write.','ht.reasonLabel':'reasoning — the model’s thinking, no final answer yet','st.reason':'Reasoning',
- 'ht.copied':'Code copied','ht.loaded':'Reference loaded (kept in memory only)','ht.truncated':'Output was cut off by the token limit — raise “Max output tokens” in Advanced.',
+ 'ht.copied':'Code copied','ht.loaded':'Reference loaded (kept in memory only)','ht.truncated':'Output was cut off by the token limit (the provider’s cap, or the limit you set in Advanced).',
  'st.time':'Time','st.out':'Output tokens','st.speed':'Speed','st.size':'File size','st.finish':'Finish',
  'con.single':'Single HTML file','con.svg':'Inline SVG','con.kf':'CSS @keyframes ×{n}','con.noext':'No external resources','con.nojs':'CSS only (no JS / SMIL)','con.title':'Auto checks',
  'foot.note':'Heuristic tool · your key never leaves your browser except to the endpoint you enter.',
@@ -867,7 +867,7 @@ vi: {
  'f.model':'Model',
  'proto.auto':'Tự nhận diện','proto.openai':'Tương thích OpenAI (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Lấy danh sách','btn.test':'Kiểm tra kết nối','btn.stop':'Dừng','btn.report':'Tải báo cáo','btn.download':'Tải file .html','btn.copy':'Sao chép code',
- 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.route':'Đường kết nối','adv.routeAuto':'Tự động (dùng relay nếu có)','adv.routeDirect':'Trực tiếp từ trình duyệt','adv.routeRelay':'Qua ROF relay','adv.upstream':'Proxy upstream','adv.upstreamHint':'host:port:user:pass · chỉ dùng với relay','adv.token':'Relay token','adv.tok':'Tham số giới hạn output (định dạng OpenAI)','adv.tokAuto':'Tự động','adv.tokOmit':'Không gửi giới hạn','adv.stream':'Stream ở bài HTML',
+ 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.maxoutPh':'không giới hạn','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.route':'Đường kết nối','adv.routeAuto':'Tự động (dùng relay nếu có)','adv.routeDirect':'Trực tiếp từ trình duyệt','adv.routeRelay':'Qua ROF relay','adv.upstream':'Proxy upstream','adv.upstreamHint':'host:port:user:pass · chỉ dùng với relay','adv.token':'Relay token','adv.tok':'Tham số giới hạn output (định dạng OpenAI)','adv.tokAuto':'Tự động','adv.tokOmit':'Không gửi giới hạn','adv.stream':'Stream ở bài HTML',
  'pick.title':'Chọn bài test','pick.sub':'Hai cách bắt hàng giả. Chạy một hoặc cả hai.',
  'probe.tag':'Kiểu BazaarLink','probe.name':'Bài Probe','probe.desc':'12 phép thử nhanh để lộ việc tráo model, prompt ẩn, đếm token ảo, output bị sửa và streaming giả.',
  'probe.m1':'~11 request','probe.m2':'~20–60 giây','probe.m3':'~7k token','probe.run':'Chạy test Probe',
@@ -914,7 +914,7 @@ vi: {
  'f.inTok':'Token đầu vào','f.outTok':'Token đầu ra','f.baseline':'Đầu vào cơ sở','f.big':'Đầu vào prompt dài','f.delta':'Chênh lệch','f.expected':'Kỳ vọng','f.ratio':'Tỉ lệ','f.finish':'Lý do kết thúc','f.limit':'Giới hạn','f.chars':'Số ký tự','f.sent':'Đã gửi','f.received':'Nhận lại',
  'f.found':'Bí mật tìm thấy','f.events':'Số sự kiện stream','f.ttfb':'Byte đầu tiên','f.spread':'Khoảng thời gian','f.ctype':'Content-type','f.term':'Kết thúc','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'Tin nhắn user','f.answers':'Các câu trả lời','f.score':'Điểm','f.yes':'có','f.no':'không','f.unknown':'không rõ',
  'err.network':'Trình duyệt không nhận được phản hồi đọc được từ {url}. Thường do: server không cho phép gọi từ trình duyệt (CORS) — tường lửa hoặc Cloudflare trả 403 cũng trông y hệt —, sai URL, lỗi TLS/mạng, hoặc trang đang nằm trong khung xem trước chặn request ra ngoài (hãy mở file bằng tab trình duyệt bình thường). Chạy “node server.mjs” sẽ tránh hẳn CORS.',
- 'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về: server không gửi header CORS cho lời gọi từ trình duyệt (tường lửa/Cloudflare 403 hay 404 không kèm CORS trông y hệt), hoặc URL sai. Đã gọi: {url}',
+ 'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về. Thường do: server không gửi header CORS cho lời gọi từ trình duyệt — một số gateway (vd ShareLLM) trả 403 cho mọi Origin ngoài domain của họ và http://localhost, còn trang mở từ file gửi “Origin: null” — hoặc URL sai. Cách xử lý: chạy “node server.mjs” rồi mở http://localhost:8787. Đã gọi: {url}',
  'err.timeout':'Quá {s}s không nhận được dữ liệu.','err.stopped':'Bạn đã dừng.','err.config':'{msg}',
  'err.401':'Không được xác thực — kiểm tra API key và header xác thực.','err.403':'Bị từ chối — key không có quyền, hoặc nhà cung cấp chặn gọi từ trình duyệt.','err.404':'Không tìm thấy — kiểm tra base URL và tên model.','err.429':'Bị giới hạn tốc độ hoặc hết hạn mức.',
  'val.base':'Hãy nhập API base URL trước.','val.model':'Hãy nhập tên model (hoặc lấy danh sách).','val.headers':'Header bổ sung phải là JSON hợp lệ, ví dụ {"X-Foo":"bar"}.','val.url':'URL này không hợp lệ.','route.direct':'Trực tiếp từ trình duyệt','route.relay':'Qua ROF relay','route.relayProxy':'Qua relay · proxy {p}','route.noRelay':'Không thấy relay','route.proxyIgnored':'bỏ qua proxy (cần relay)','route.needToken':'Relay cần token','route.tip':'Cách lời gọi API rời khỏi trang này: thẳng từ trình duyệt (chịu CORS) hoặc qua ROF relay (node server.mjs) — relay dùng được proxy.',
@@ -927,9 +927,9 @@ vi: {
  'ht.genT':'Đang viết trang…','ht.genP':'Đã nhận {n} ký tự. Chuyển sang “Mã nguồn” để xem nó chảy về.',
  'ht.noHtml':'Câu trả lời không chứa HTML. Mở “Mã nguồn” để đọc model đã nói gì.',
  'ht.noHtmlT':'Không có HTML trong câu trả lời','ht.noHtmlWhy':'Không tìm thấy HTML trong câu trả lời.','ht.d.finish':'kết thúc: {v}','ht.d.out':'token đầu ra: {v}','ht.d.reason':'suy luận: {v}','ht.d.reply':'câu trả lời: {v} ký tự',
- 'ht.d.cut':'Model hết token — model suy luận tiêu token vào việc “nghĩ”. Hãy tăng “Max output tokens” ở mục Nâng cao.','ht.d.onlyReason':'Model chỉ suy luận mà chưa trả lời — thử lại hoặc tăng “Max output tokens”.','ht.d.read':'Mở “Mã nguồn” để đọc model đã nói gì.','ht.d.retryErr':'(Thử lại với ngân sách lớn hơn bị lỗi: {e})',
+ 'ht.d.cut':'Model chạm giới hạn output do bạn đặt — hãy xoá ô “Max output tokens” ở mục Nâng cao để bỏ giới hạn.','ht.d.cap':'Nhà cung cấp giới hạn output của model này ở {n} token và đã dùng hết — đó là mức tối đa nó cho viết.','ht.d.onlyReason':'Model chỉ suy luận mà chưa trả lời — hãy thử lại.','ht.d.read':'Mở “Mã nguồn” để đọc model đã nói gì.','ht.d.retryErr':'(Thử lại với ngân sách lớn hơn bị lỗi: {e})',
  'ht.retry':'Model dùng hết ngân sách để suy nghĩ — thử lại với {n} token…','ht.thinkT':'Đang suy nghĩ…','ht.thinkP':'{n} ký tự suy luận — model suy luận có thể nghĩ khá lâu trước khi viết.','ht.reasonLabel':'suy luận — phần model nghĩ, chưa có câu trả lời cuối','st.reason':'Suy luận',
- 'ht.copied':'Đã sao chép code','ht.loaded':'Đã nạp file tham chiếu (chỉ giữ trong bộ nhớ)','ht.truncated':'Output bị cắt do hết giới hạn token — hãy tăng “Max output tokens” ở phần Nâng cao.',
+ 'ht.copied':'Đã sao chép code','ht.loaded':'Đã nạp file tham chiếu (chỉ giữ trong bộ nhớ)','ht.truncated':'Output bị cắt do hết giới hạn token (giới hạn của nhà cung cấp, hoặc mức bạn đặt ở Nâng cao).',
  'st.time':'Thời gian','st.out':'Token đầu ra','st.speed':'Tốc độ','st.size':'Dung lượng','st.finish':'Kết thúc',
  'con.single':'Một file HTML','con.svg':'SVG nội tuyến','con.kf':'CSS @keyframes ×{n}','con.noext':'Không tài nguyên ngoài','con.nojs':'Chỉ CSS (không JS / SMIL)','con.title':'Tự kiểm tra',
  'foot.note':'Công cụ heuristic · API key không rời khỏi trình duyệt, chỉ gửi tới endpoint bạn nhập.',
@@ -1343,18 +1343,24 @@ async function chatOnce(c, o){
 }
 /* retry on known provider quirks and on opaque failures (wrong path, strict servers) */
 async function chat(c, o){
-  let opts = o, clamped = false;
-  for (let i = 0; i < 6; i++){
+  let opts = o, clamps = 0;
+  if (c.q.cap) opts = { ...opts, maxTokens: Math.min(opts.maxTokens, c.q.cap) };
+  for (let i = 0; i < 10; i++){
     try { return await chatOnce(c, opts); }
     catch (e){
       if (!(e instanceof ApiError)) throw e;
-      if (e.kind === 'http' && [400, 422].includes(e.status)){
+      if (e.kind === 'http' && [400, 402, 422].includes(e.status)){
         const m = String(e.detail).toLowerCase();
-        if (!clamped && /max_tokens|max_completion_tokens|maxoutputtokens|output tokens/.test(m) && /range|maximum|at most|less than|exceed|too large|must be/.test(m)){
-          // the provider caps output lower than we asked (e.g. "valid range of max_tokens is [1, 8192]"): use its cap
-          const cap = [...m.matchAll(/\d[\d,]*/g)].map(x => +x[0].replace(/,/g, '')).filter(n => n >= 256 && n < opts.maxTokens).sort((a, b) => b - a)[0];
-          if (cap){ opts = { ...opts, maxTokens: cap }; clamped = true; continue; }
+        // The provider caps output (or what the account can afford) below what we asked for — "valid range of max_tokens is [1, 8192]",
+        // "supports at most 16384 completion tokens", "can only afford 4000": step down to the number it names, else halve and retry.
+        if (clamps < 6 && opts.maxTokens > 1024
+            && /max_tokens|max_completion_tokens|maxoutputtokens|output tokens|completion tokens|afford|credits/.test(m)
+            && /range|maximum|at most|less than|exceed|too large|too many|must be|afford|supports|limit/.test(m)){
+          let cap = [...m.matchAll(/\d[\d,]*/g)].map(x => +x[0].replace(/,/g, '')).filter(n => n >= 256 && n < opts.maxTokens).sort((a, b) => b - a)[0];
+          if (cap && /exclusive/.test(m)) cap -= 1;
+          opts = { ...opts, maxTokens: cap || Math.floor(opts.maxTokens / 2) }; c.q.cap = opts.maxTokens; clamps++; continue;
         }
+        if (e.status === 402) throw e;
         if (c.proto === 'openai' && c.tokenField === 'auto' && !c.q.maxCompletion && /max_completion_tokens/.test(m)){ c.q.maxCompletion = true; continue; }
         if (c.proto === 'openai' && c.tokenField === 'auto' && c.q.maxCompletion && /max_tokens/.test(m) && !/max_completion/.test(m)){ c.q.maxCompletion = false; continue; }
         if (!c.q.noTemp && /temperature|top_p/.test(m)){ c.q.noTemp = true; continue; }
@@ -1867,6 +1873,7 @@ function renderHtmlStatic(){
   renderOutput();
 }
 const CUT = /length|max_tokens|MAX_TOKENS/i;
+const UNLIMITED = 131072;      // "no limit": ask for far more than any model writes; chat() steps down to the provider's own cap if it complains
 function sourceText(){
   return html.raw || (html.reasoning ? `/* ${t('ht.reasonLabel')} */\n${html.reasoning}` : '') || html.out || '';
 }
@@ -1876,7 +1883,7 @@ function diagText(){
   if (d.rchars || d.rtok) bits.push(t('ht.d.reason', { v: d.rtok != null ? fmtNum(d.rtok) + ' tok' : fmtNum(d.rchars) + ' chars' }));
   bits.push(t('ht.d.reply', { v: fmtNum(d.chars) }));
   let msg = t('ht.noHtmlWhy') + ' ' + bits.join(' · ') + '.';
-  if (CUT.test(d.finish || '')) msg += ' ' + t('ht.d.cut');
+  if (CUT.test(d.finish || '')) msg += ' ' + (d.cap ? t('ht.d.cap', { n: fmtNum(d.cap) }) : t('ht.d.cut'));
   else if (!d.chars && d.rchars) msg += ' ' + t('ht.d.onlyReason');
   else if (d.chars) msg += ' ' + t('ht.d.read');
   if (html.retryErr) msg += ' ' + t('ht.d.retryErr', { e: html.retryErr });
@@ -1891,7 +1898,7 @@ async function runHtml(){
   html.ctl = new AbortController(); setBusy('html'); renderHtmlStatic(); renderRef();
   $('#htPrompt').scrollIntoView({ block:'nearest' });
   const t0 = performance.now();
-  let last = 0, budget = c.maxOut || (reasoningLike(c.model) ? 32000 : 16000), attempt = 0, r = null, prev = null;
+  let last = 0, budget = c.maxOut || UNLIMITED, attempt = 0, r = null, prev = null;
   const onDelta = (text, piece, o) => {
     html.raw = text; if (o) html.reasoning = o.reasoning;
     html.live = { chars: text.length, reasoning: (o?.reasoning || '').length };
@@ -1922,7 +1929,7 @@ async function runHtml(){
   html.ctl = null;
   html.out = extractHtml(html.raw);
   const rs = html.res || {};
-  html.diag = { finish: rs.finish, out: rs.out, rtok: rs.rtok, rchars: (html.reasoning || '').length, chars: (html.raw || '').length };
+  html.diag = { finish: rs.finish, out: rs.out, rtok: rs.rtok, rchars: (html.reasoning || '').length, chars: (html.raw || '').length, cap: c.q.cap || null };
   if (html.out) replayBoth();                       // restart both sides together so the animations are in sync
   setBusy(null); renderHtmlStatic();
 }
