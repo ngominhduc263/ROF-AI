@@ -388,6 +388,13 @@ footer b{color:var(--muted);font-family:var(--display)}
           <input class="input mono" id="timeout" type="number" min="10" step="10" value="240"></div>
         <div class="field c6"><label for="headers"><span data-i18n="adv.headers"></span></label>
           <input class="input mono" id="headers" type="text" autocomplete="off" spellcheck="false" placeholder='{"X-Custom":"value"}'></div>
+        <div class="field c6"><label for="tokenField"><span data-i18n="adv.tok"></span></label>
+          <select class="input" id="tokenField">
+            <option value="auto" data-i18n="adv.tokAuto"></option>
+            <option value="max_tokens">max_tokens</option>
+            <option value="max_completion_tokens">max_completion_tokens</option>
+            <option value="omit" data-i18n="adv.tokOmit"></option>
+          </select></div>
         <div class="field c12"><label for="proxy"><span data-i18n="adv.proxy"></span><em data-i18n="adv.proxyHint"></em></label>
           <input class="input mono" id="proxy" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://your-proxy.example.workers.dev/"></div>
         <div class="field c6"><label aria-hidden="true">&nbsp;</label>
@@ -752,7 +759,7 @@ en: {
  'f.model':'Model',
  'proto.auto':'Auto-detect','proto.openai':'OpenAI-compatible (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Fetch models','btn.test':'Test connection','btn.stop':'Stop','btn.report':'Download report','btn.download':'Download .html','btn.copy':'Copy code',
- 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.proxy':'CORS proxy prefix','adv.proxyHint':'only if the provider blocks browser calls — your key then passes through that proxy','adv.stream':'Stream the HTML test',
+ 'adv.title':'Advanced','adv.auth':'Auth header','adv.authAuto':'Auto','adv.authNone':'None','adv.temp':'Temperature (HTML test)','adv.maxout':'Max output tokens (HTML test)','adv.timeout':'Idle timeout (s)','adv.headers':'Extra headers (JSON)','adv.proxy':'CORS proxy prefix','adv.proxyHint':'URL prefix of a CORS relay (not host:port:user:pass) — your key passes through it','adv.tok':'Output-limit parameter (OpenAI format)','adv.tokAuto':'Auto','adv.tokOmit':'Don’t send a limit','adv.stream':'Stream the HTML test',
  'pick.title':'Choose a test','pick.sub':'Two ways to catch a fake. Run either, or both.',
  'probe.tag':'BazaarLink-style','probe.name':'Probe test','probe.desc':'12 quick checks that expose model swaps, hidden prompts, inflated token counts, tampered output and fake streaming.',
  'probe.m1':'~11 requests','probe.m2':'~20–60 s','probe.m3':'~7k tokens','probe.run':'Run probe test',
@@ -789,7 +796,7 @@ en: {
  'sum.cap.ok':'All 4 answers correct.','sum.cap.warn':'{n}/4 correct — one slip.','sum.cap.bad':'{n}/4 correct — weaker than expected for “{model}”.','sum.cap.small':'{n}/4 correct — acceptable for a small model.',
  'sum.ov.ok':'A tiny prompt was billed at {n} input tokens.','sum.ov.warn':'A tiny prompt was billed at {n} tokens — about {extra} more than expected.','sum.ov.bad':'A tiny prompt was billed at {n} tokens — roughly {extra} tokens of hidden prompt are being added.','sum.ov.none':'The endpoint reports no usage, so billing can’t be verified.',
  'sum.lin.ok':'+{d} tokens for ~{exp} expected (ratio {r}×).','sum.lin.over':'+{d} tokens for ~{exp} expected (ratio {r}×) — input is being padded or inflated.','sum.lin.under':'+{d} tokens for ~{exp} expected (ratio {r}×) — input may be truncated or under-counted.','sum.lin.none':'No usage numbers — can’t compare token counts.',
- 'sum.mt.ok':'Stopped at {n} tokens (limit {lim}, finish: {fin}).','sum.mt.warn':'Reported {n} tokens for a limit of {lim}.','sum.mt.bad':'Limit ignored: {chars} characters came back for a {lim}-token cap.','sum.mt.nouse':'Stopped near the limit (finish: {fin}); no usage reported.',
+ 'sum.mt.ok':'Stopped at {n} tokens (limit {lim}, finish: {fin}).','sum.mt.warn':'Reported {n} tokens for a limit of {lim}.','sum.mt.bad':'Limit ignored: {chars} characters came back for a {lim}-token cap.','sum.mt.nouse':'Stopped near the limit (finish: {fin}); no usage reported.','sum.mt.omit':'Skipped — you chose not to send a token limit.',
  'sum.sys.ok':'Followed the system message.','sum.sys.warn':'Partly followed it: “{text}”.','sum.sys.bad':'System message ignored — answered “{text}”.',
  'sum.leak.ok':'No hidden instructions revealed.','sum.leak.warn':'Unclear answer: “{text}”.','sum.leak.bad':'Revealed instructions you never sent: “{text}”.',
  'sum.int.ok':'Returned byte-for-byte.','sum.int.warn':'Same content, but wrapped in extra text or formatting.','sum.int.bad':'Content was altered in transit.',
@@ -799,6 +806,8 @@ en: {
  'f.inTok':'Input tokens','f.outTok':'Output tokens','f.baseline':'Baseline input','f.big':'Big prompt input','f.delta':'Delta','f.expected':'Expected','f.ratio':'Ratio','f.finish':'Finish reason','f.limit':'Limit','f.chars':'Characters','f.sent':'Sent','f.received':'Received',
  'f.found':'Secrets found','f.events':'Stream events','f.ttfb':'First byte','f.spread':'Time spread','f.ctype':'Content-type','f.term':'Terminator','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'User message','f.answers':'Answers','f.score':'Score','f.yes':'yes','f.no':'no','f.unknown':'unknown',
  'err.network':'Network error — the browser couldn’t reach the endpoint. Usual causes: the server doesn’t allow browser (CORS) requests (try a CORS proxy under Advanced), a wrong URL, or http on an https page.',
+ 'err.cors':'The server answered, but the browser refused to hand over the response. Either it sends no CORS headers for browser calls, or the path is wrong (a 404 without CORS headers looks identical). Tried: {url}',
+ 'err.unreach':'Can’t reach {host} at all. If you’re viewing this page inside a preview pane or sandbox, open the file in a normal browser tab — those panes block outside requests. Otherwise check the domain, TLS certificate and your network. Tried: {url}',
  'err.timeout':'Timed out after {s}s with no data.','err.stopped':'Stopped by you.','err.config':'{msg}',
  'err.401':'Unauthorized — check the API key and auth header.','err.403':'Forbidden — the key lacks access, or the provider blocks browser requests.','err.404':'Not found — check the base URL and model name.','err.429':'Rate limited or out of quota.',
  'val.base':'Enter the API base URL first.','val.model':'Enter a model name (or fetch the list).','val.headers':'Extra headers must be valid JSON, e.g. {"X-Foo":"bar"}.','val.url':'That doesn’t look like a valid URL.','val.proxy':'The CORS proxy must be a full URL, e.g. https://proxy.example.com/',
@@ -826,7 +835,7 @@ vi: {
  'f.model':'Model',
  'proto.auto':'Tự nhận diện','proto.openai':'Tương thích OpenAI (Chat Completions)','proto.anthropic':'Anthropic (Messages)','proto.gemini':'Google Gemini (generateContent)',
  'btn.models':'Lấy danh sách','btn.test':'Kiểm tra kết nối','btn.stop':'Dừng','btn.report':'Tải báo cáo','btn.download':'Tải file .html','btn.copy':'Sao chép code',
- 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.proxy':'Tiền tố CORS proxy','adv.proxyHint':'chỉ dùng khi nhà cung cấp chặn gọi từ trình duyệt — key sẽ đi qua proxy đó','adv.stream':'Stream ở bài HTML',
+ 'adv.title':'Nâng cao','adv.auth':'Header xác thực','adv.authAuto':'Tự động','adv.authNone':'Không','adv.temp':'Temperature (bài HTML)','adv.maxout':'Max output tokens (bài HTML)','adv.timeout':'Timeout khi im lặng (s)','adv.headers':'Header bổ sung (JSON)','adv.proxy':'Tiền tố CORS proxy','adv.proxyHint':'tiền tố URL của CORS relay (không phải host:port:user:pass) — key sẽ đi qua nó','adv.tok':'Tham số giới hạn output (định dạng OpenAI)','adv.tokAuto':'Tự động','adv.tokOmit':'Không gửi giới hạn','adv.stream':'Stream ở bài HTML',
  'pick.title':'Chọn bài test','pick.sub':'Hai cách bắt hàng giả. Chạy một hoặc cả hai.',
  'probe.tag':'Kiểu BazaarLink','probe.name':'Bài Probe','probe.desc':'12 phép thử nhanh để lộ việc tráo model, prompt ẩn, đếm token ảo, output bị sửa và streaming giả.',
  'probe.m1':'~11 request','probe.m2':'~20–60 giây','probe.m3':'~7k token','probe.run':'Chạy test Probe',
@@ -863,7 +872,7 @@ vi: {
  'sum.cap.ok':'Đúng cả 4 câu.','sum.cap.warn':'Đúng {n}/4 — sai một câu.','sum.cap.bad':'Đúng {n}/4 — yếu hơn kỳ vọng với “{model}”.','sum.cap.small':'Đúng {n}/4 — chấp nhận được với model nhỏ.',
  'sum.ov.ok':'Prompt rất ngắn bị tính {n} token đầu vào.','sum.ov.warn':'Prompt rất ngắn bị tính {n} token — nhiều hơn dự kiến khoảng {extra}.','sum.ov.bad':'Prompt rất ngắn bị tính {n} token — có khoảng {extra} token prompt ẩn bị chèn thêm.','sum.ov.none':'Endpoint không báo usage nên không kiểm chứng được cách tính tiền.',
  'sum.lin.ok':'+{d} token so với ~{exp} dự kiến (tỉ lệ {r}×).','sum.lin.over':'+{d} token so với ~{exp} dự kiến (tỉ lệ {r}×) — token đầu vào bị độn/đếm khống.','sum.lin.under':'+{d} token so với ~{exp} dự kiến (tỉ lệ {r}×) — đầu vào có thể bị cắt hoặc đếm thiếu.','sum.lin.none':'Không có số liệu usage — không so sánh được.',
- 'sum.mt.ok':'Dừng ở {n} token (giới hạn {lim}, finish: {fin}).','sum.mt.warn':'Báo {n} token cho giới hạn {lim}.','sum.mt.bad':'Bỏ qua giới hạn: trả về {chars} ký tự dù giới hạn {lim} token.','sum.mt.nouse':'Dừng gần giới hạn (finish: {fin}); không có usage.',
+ 'sum.mt.ok':'Dừng ở {n} token (giới hạn {lim}, finish: {fin}).','sum.mt.warn':'Báo {n} token cho giới hạn {lim}.','sum.mt.bad':'Bỏ qua giới hạn: trả về {chars} ký tự dù giới hạn {lim} token.','sum.mt.nouse':'Dừng gần giới hạn (finish: {fin}); không có usage.','sum.mt.omit':'Bỏ qua — bạn đã chọn không gửi giới hạn token.',
  'sum.sys.ok':'Làm đúng theo system message.','sum.sys.warn':'Làm theo một phần: “{text}”.','sum.sys.bad':'Bỏ qua system message — trả lời “{text}”.',
  'sum.leak.ok':'Không lộ chỉ dẫn ẩn nào.','sum.leak.warn':'Câu trả lời chưa rõ: “{text}”.','sum.leak.bad':'Lộ chỉ dẫn mà bạn không hề gửi: “{text}”.',
  'sum.int.ok':'Trả về từng ký tự chính xác.','sum.int.warn':'Nội dung đúng nhưng bị bọc thêm chữ hoặc định dạng.','sum.int.bad':'Nội dung bị sửa trên đường truyền.',
@@ -873,6 +882,8 @@ vi: {
  'f.inTok':'Token đầu vào','f.outTok':'Token đầu ra','f.baseline':'Đầu vào cơ sở','f.big':'Đầu vào prompt dài','f.delta':'Chênh lệch','f.expected':'Kỳ vọng','f.ratio':'Tỉ lệ','f.finish':'Lý do kết thúc','f.limit':'Giới hạn','f.chars':'Số ký tự','f.sent':'Đã gửi','f.received':'Nhận lại',
  'f.found':'Bí mật tìm thấy','f.events':'Số sự kiện stream','f.ttfb':'Byte đầu tiên','f.spread':'Khoảng thời gian','f.ctype':'Content-type','f.term':'Kết thúc','f.usage':'Usage chunk','f.sys':'System prompt','f.user':'Tin nhắn user','f.answers':'Các câu trả lời','f.score':'Điểm','f.yes':'có','f.no':'không','f.unknown':'không rõ',
  'err.network':'Lỗi mạng — trình duyệt không tới được endpoint. Thường do server không cho phép gọi từ trình duyệt (CORS — thử CORS proxy ở mục Nâng cao), sai URL, hoặc dùng http trên trang https.',
+ 'err.cors':'Server có trả lời, nhưng trình duyệt từ chối đưa dữ liệu về. Hoặc server không gửi header CORS cho lời gọi từ trình duyệt, hoặc đường dẫn sai (404 không kèm CORS trông y hệt). Đã gọi: {url}',
+ 'err.unreach':'Hoàn toàn không tới được {host}. Nếu bạn đang xem trang trong khung xem trước/sandbox, hãy mở file bằng tab trình duyệt bình thường — các khung đó chặn request ra ngoài. Nếu không, kiểm tra tên miền, chứng chỉ TLS và mạng. Đã gọi: {url}',
  'err.timeout':'Quá {s}s không nhận được dữ liệu.','err.stopped':'Bạn đã dừng.','err.config':'{msg}',
  'err.401':'Không được xác thực — kiểm tra API key và header xác thực.','err.403':'Bị từ chối — key không có quyền, hoặc nhà cung cấp chặn gọi từ trình duyệt.','err.404':'Không tìm thấy — kiểm tra base URL và tên model.','err.429':'Bị giới hạn tốc độ hoặc hết hạn mức.',
  'val.base':'Hãy nhập API base URL trước.','val.model':'Hãy nhập tên model (hoặc lấy danh sách).','val.headers':'Header bổ sung phải là JSON hợp lệ, ví dụ {"X-Foo":"bar"}.','val.url':'URL này không hợp lệ.','val.proxy':'CORS proxy phải là URL đầy đủ, ví dụ https://proxy.example.com/',
@@ -997,8 +1008,9 @@ function readConn(){
     timeoutMs: clamp(parseInt($('#timeout').value, 10) || 240, 10, 1800) * 1000,
     stream: $('#stream').checked,
     proxy: $('#proxy').value.trim(),
+    tokenField: $('#tokenField').value,
     extra: {},
-    q: { maxCompletion: proto === 'openai' && /api\.openai\.com/i.test(base) && /(^|\/)(o\d|gpt-?5)/i.test($('#model').value), noTemp: false, noStreamOpts: false }
+    q: { maxCompletion: proto === 'openai' && /api\.openai\.com/i.test(base) && /(^|\/)(o\d|gpt-?5)/i.test($('#model').value), noTemp: false, noStreamOpts: false, v1: false, minimal: false }
   };
   const h = $('#headers').value.trim();
   if (h){ try { const o = JSON.parse(h); if (o && typeof o === 'object' && !Array.isArray(o)) c.extra = o; else throw 0; } catch { c.badHeaders = true; } }
@@ -1021,22 +1033,26 @@ function errText(e){
   switch (e.kind){
     case 'stopped': return t('err.stopped');
     case 'timeout': return t('err.timeout', { s: Math.round((e.ms || 0) / 1000) });
-    case 'network': return t('err.network');
+    case 'network': return e.reachable === true ? t('err.cors', { url: shortUrl(e.url) })
+      : e.reachable === false ? t('err.unreach', { url: shortUrl(e.url), host: (() => { try { return new URL(e.url).host; } catch { return ''; } })() }) : t('err.network');
     case 'config':  return e.detail;
     case 'http': {
       const hint = [401, 403, 404, 429].includes(e.status) ? ' ' + t('err.' + e.status) : '';
-      return `HTTP ${e.status}: ${trunc(one(e.detail), 260)}${hint}`;
+      return `HTTP ${e.status}: ${trunc(one(e.detail), 260)}${hint}${e.url ? ' · ' + (e.method || 'POST') + ' ' + shortUrl(e.url) : ''}`;
     }
     default: return trunc(one(e.detail), 260);
   }
 }
 
 /* ---------- URL + header builders ---------- */
+const stripApiTail = p => p.replace(/\/+$/, '').replace(/\/(chat\/completions|completions|messages|responses|models)$/i, '');
+const canAddV1 = c => { try { return !c.q.v1 && c.proto !== 'gemini' && stripApiTail(new URL(c.base).pathname) === ''; } catch { return false; } };
+const shortUrl = u => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return String(u || ''); } };
 function endpointFor(c, kind, o = {}){
   let u; try { u = new URL(c.base); } catch { throw new ApiError('config', t('val.url')); }
-  let path = u.pathname.replace(/\/+$/, '').replace(/\/(chat\/completions|completions|messages|responses|models)$/i, '');
+  let path = stripApiTail(u.pathname);
   if (c.proto === 'gemini') path = path.replace(/\/models\/[^/]+$/i, '');
-  if (!path) path = c.proto === 'gemini' ? '/v1beta' : '/v1';
+  if (!path) path = c.proto === 'gemini' ? '/v1beta' : (c.q.v1 ? '/v1' : '');   // keep the path exactly as typed; /v1 is only a fallback
   const sp = new URLSearchParams(u.search);
   let tail;
   if (kind === 'models'){
@@ -1089,25 +1105,36 @@ async function http(c, url, { method = 'GET', body, signal } = {}){
     if (!res.ok){
       let text = ''; try { text = await res.text(); } catch {}
       let detail = text; try { const j = JSON.parse(text); detail = j?.error?.message || (typeof j?.error === 'string' ? j.error : '') || j?.message || j?.detail || text; } catch {}
-      done(); throw new ApiError('http', String(detail || res.statusText), { status: res.status });
+      done(); throw new ApiError('http', String(detail || res.statusText), { status: res.status, url, method });
     }
     return { res, touch: arm, done, fail };
   } catch (e){
     if (e instanceof ApiError) throw e;
-    throw fail(e);
+    const err = fail(e);
+    if (err.kind === 'network'){ err.url = url; err.reachable = await probeReach(c.proxy || url); }
+    throw err;
   }
+}
+/* A failed fetch() is opaque: CORS refusals, wrong paths on servers without CORS headers and dead hosts all look alike.
+   A no-cors request resolves whenever the host answers at all, which tells them apart. */
+async function probeReach(url){
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);
+  try { await fetch(new URL(url).origin + '/', { mode:'no-cors', cache:'no-store', credentials:'omit', referrerPolicy:'no-referrer', signal: ctl.signal }); return true; }
+  catch { return false; }
+  finally { clearTimeout(timer); }
 }
 
 /* ---------- protocol bodies / parsers ---------- */
 const contentOf = v => typeof v === 'string' ? v : Array.isArray(v) ? v.map(p => typeof p === 'string' ? p : (p?.text ?? '')).join('') : '';
 function buildBody(c, o){
-  const temp = c.q.noTemp ? null : (o.temperature ?? null);
+  const temp = c.q.noTemp || c.q.minimal ? null : (o.temperature ?? null);
   if (c.proto === 'openai'){
     const b = { model: c.model, stream: !!o.stream,
       messages: [...(o.system ? [{ role:'system', content:o.system }] : []), { role:'user', content:o.user }] };
-    b[c.q.maxCompletion ? 'max_completion_tokens' : 'max_tokens'] = o.maxTokens;
+    const tf = c.tokenField === 'auto' ? (c.q.maxCompletion ? 'max_completion_tokens' : 'max_tokens') : c.tokenField;
+    if (tf !== 'omit') b[tf] = o.maxTokens;
     if (temp != null) b.temperature = temp;
-    if (o.stream && !c.q.noStreamOpts) b.stream_options = { include_usage: true };
+    if (o.stream && !c.q.noStreamOpts && !c.q.minimal) b.stream_options = { include_usage: true };
     return b;
   }
   if (c.proto === 'anthropic'){
@@ -1229,17 +1256,23 @@ async function chatOnce(c, o){
   out.ms = performance.now() - t0;
   return out;
 }
-/* retry once per known provider quirk (reasoning models, strict params) */
+/* retry on known provider quirks and on opaque failures (wrong path, strict servers) */
 async function chat(c, o){
-  for (let i = 0; i < 4; i++){
+  for (let i = 0; i < 6; i++){
     try { return await chatOnce(c, o); }
     catch (e){
-      if (!(e instanceof ApiError) || e.kind !== 'http' || ![400, 422].includes(e.status)) throw e;
-      const m = String(e.detail).toLowerCase();
-      if (c.proto === 'openai' && !c.q.maxCompletion && /max_completion_tokens/.test(m)){ c.q.maxCompletion = true; continue; }
-      if (c.proto === 'openai' && c.q.maxCompletion && /max_tokens/.test(m) && !/max_completion/.test(m)){ c.q.maxCompletion = false; continue; }
-      if (!c.q.noTemp && /temperature|top_p/.test(m)){ c.q.noTemp = true; continue; }
-      if (c.proto === 'openai' && !c.q.noStreamOpts && /stream_options/.test(m)){ c.q.noStreamOpts = true; continue; }
+      if (!(e instanceof ApiError)) throw e;
+      if (e.kind === 'http' && [400, 422].includes(e.status)){
+        const m = String(e.detail).toLowerCase();
+        if (c.proto === 'openai' && c.tokenField === 'auto' && !c.q.maxCompletion && /max_completion_tokens/.test(m)){ c.q.maxCompletion = true; continue; }
+        if (c.proto === 'openai' && c.tokenField === 'auto' && c.q.maxCompletion && /max_tokens/.test(m) && !/max_completion/.test(m)){ c.q.maxCompletion = false; continue; }
+        if (!c.q.noTemp && /temperature|top_p/.test(m)){ c.q.noTemp = true; continue; }
+        if (c.proto === 'openai' && !c.q.noStreamOpts && /stream_options/.test(m)){ c.q.noStreamOpts = true; continue; }
+        throw e;
+      }
+      if (e.kind === 'http' && [404, 405].includes(e.status) && canAddV1(c)){ c.q.v1 = true; continue; }
+      if (e.kind === 'network' && e.reachable && !c.q.minimal){ c.q.minimal = true; continue; }   // host answered but the browser refused: retry on the same path with a bare-bones body
+      if (e.kind === 'network' && canAddV1(c)){ c.q.v1 = true; continue; }                          // then try the conventional /v1 prefix
       throw e;
     }
   }
@@ -1247,12 +1280,19 @@ async function chat(c, o){
 }
 
 async function fetchModels(c){
-  const { res, done } = await http(c, endpointFor(c, 'models'), {});
-  let j; try { j = await res.json(); } finally { done(); }
-  let ids = [];
-  if (c.proto === 'gemini') ids = (j.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')).map(m => String(m.name).replace(/^models\//, ''));
-  else ids = (Array.isArray(j) ? j : j.data || j.models || []).map(m => typeof m === 'string' ? m : (m.id || m.name || m.model)).filter(Boolean);
-  return [...new Set(ids)].sort();
+  for (let i = 0; ; i++){
+    try {
+      const { res, done } = await http(c, endpointFor(c, 'models'), {});
+      let j; try { j = await res.json(); } finally { done(); }
+      let ids = [];
+      if (c.proto === 'gemini') ids = (j.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')).map(m => String(m.name).replace(/^models\//, ''));
+      else ids = (Array.isArray(j) ? j : j.data || j.models || []).map(m => typeof m === 'string' ? m : (m.id || m.name || m.model)).filter(Boolean);
+      return [...new Set(ids)].sort();
+    } catch (e){
+      if (i < 1 && e instanceof ApiError && (e.kind === 'network' || [404, 405].includes(e.status)) && canAddV1(c)){ c.q.v1 = true; continue; }
+      throw e;
+    }
+  }
 }
 
 /* ==========================================================================
@@ -1399,6 +1439,7 @@ const CHECKS = [
     return { status: ratio < 0.5 ? 'fail' : 'warn', sum:M('sum.lin.under', p), facts };
  }},
  { id:'maxtok', grp:'tokens', w:1, run: async x => {
+    if (x.c.proto === 'openai' && x.c.tokenField === 'omit') return { status:'info', sum:M('sum.mt.omit'), facts:[] };
     const lim = 24;
     const r = await ask(x, { user:'Count from 1 to 200 separated by single spaces. Output nothing else.', maxTokens:lim, exact:true });
     const facts = [['f.limit', lim], ['f.outTok', r.out ?? '—'], ['f.chars', r.text.length], ['f.finish', r.finish || '—']];
