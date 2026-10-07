@@ -31,6 +31,11 @@ head tail wc mkdir cp mv rm tee …`, no network, no loops/conditionals) — a m
 `render [file]`, which renders the page in the sandbox and reports the same checks the page shows, so the model can repair its own work. Each file the model
 writes becomes a version you can open in the preview; a final render check runs on the last one.
 
+When a run ends without a page, the page says why (empty reply after reasoning used the whole output limit, a tool call cut off mid-way, text-only
+answer with no tool call, step limit, …) and the session log keeps a sample of the raw response for empty replies. A step that the provider cut off at its own
+default limit — ROF sent none — is retried once with `max_tokens` 131,072 (stepping down to whatever the provider accepts) and that limit is used for the rest
+of the run; the retry is written to the session log. A limit you set yourself is never overridden.
+
 Native tool calling is implemented for all four protocols, streaming or not (DeepSeek's `reasoning_content`, Responses `encrypted_content`, Anthropic thinking
 blocks and Gemini `thoughtSignature` are replayed as each provider requires). A model or gateway that refuses tool calling shows a hint; switch the harness to
 **Text-only** (the toggle in the panel) to test it with the previous single-prompt loop (≤ 3 model calls, no tools).
@@ -102,8 +107,8 @@ You can also try a file without editing the source via the **Load reference file
   access, so external libraries fail to load — exactly what the prompt forbids.
 - The endpoint is used exactly as typed: only the method path (`/chat/completions`, `/responses`, `/messages`, `/models`) is appended to a
   base URL, and a URL that already ends with it is called verbatim. Nothing else (no `/v1`) is ever inserted; the exact URLs are shown under the field.
-- The HTML test sends **no output limit by default** (*Unlimited by ROF*; Anthropic's required `max_tokens` is set to 100,000). Pick a parameter name or enter a
-  number in *Advanced* to force one. The total time limit defaults to 15 minutes (up to 30).
+- The HTML test sends **no output limit by default** (*Unlimited by ROF*; Anthropic's required `max_tokens` is set to 100,000), except for the one-time retry
+  described above. Pick a parameter name or enter a number in *Advanced* to force one. The total time limit defaults to 15 minutes (up to 30).
 - The model picker always lists every model returned by the endpoint (with search), regardless of what is typed in the field.
 - Results are heuristic: passing every check does not prove a relay is clean, and the agent harness has been exercised against scripted mock providers,
   not against every real one.

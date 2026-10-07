@@ -370,6 +370,7 @@ footer b{color:var(--muted);font-family:var(--display)}
 .dsh-ver button:hover:not(:disabled){background:rgba(91,124,255,.2)}.dsh-ver button:disabled{opacity:.7;cursor:default}
 .dsh-rep,.dsh-end,.dsh-live{display:flex;align-items:center;gap:8px;padding:4px 2px;color:var(--muted);font-size:12.5px}
 .dsh-rep.ok,.dsh-end.ok{color:var(--ok-text)}.dsh-rep.bad{color:var(--warn)}.dsh-end.bad{color:var(--bad)}
+.dsh-why{margin-top:6px;font-weight:400;line-height:1.55;color:var(--text)}
 .dsh-legal{margin:12px 0 0;font-size:11.5px;line-height:1.5;color:var(--faint)}
 </style>
 </head>
@@ -1482,6 +1483,7 @@ const ROF_DSH = (function createDsh(){
  const sha = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + ':' + s.length; };
 
  /* --------------------------------------------------------------------------------------------------- the agent loop ---- */
+ const isCut = f => /length|max_?tokens|max_output|incomplete/i.test(String(f ?? ''));          // the provider stopped the reply at an output limit
  const asNum = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
  function totals(steps){
   const sum = k => { const v = steps.map(s => asNum(s[k])).filter(x => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
@@ -1522,7 +1524,7 @@ const ROF_DSH = (function createDsh(){
   outer: for (let step = 1; step <= maxSteps; step++){
    const stop = stopReason(); if (stop){ status = stop; break; }
    let res;
-   try { res = await callModel({ system: SYSTEM_PROMPT, messages, tools: TOOLS, step, signal, deadline, sampling: SAMPLING }); }
+   try { res = await callModel({ system: SYSTEM_PROMPT, messages, tools: TOOLS, step, signal, deadline, sampling: SAMPLING, note: (type, data) => push(type, { step, ...data }) }); }
    catch (e){
     error = e; status = signal?.aborted ? 'stopped' : Date.now() >= deadline ? 'timeout' : 'error';
     if (e?.partial && (e.partial.text || e.partial.reasoning)){ steps.push(e.partial); push('assistant/message', { step, partial: true, text: e.partial.text || '', reasoning: String(e.partial.reasoning || '').slice(0, 20000), toolCalls: [], usage: { in: e.partial.in ?? null, out: e.partial.out ?? null } }); }
@@ -1531,7 +1533,7 @@ const ROF_DSH = (function createDsh(){
    steps.push(res);
    const calls = (res.toolCalls || []).map((c, k) => ({ id: c.id || 'call_' + step + '_' + k, name: c.name, arguments: c.arguments }));
    messages.push({ role: 'assistant', text: res.text || '', reasoning: res.reasoning || '', toolCalls: calls, native: res.native });
-   push('assistant/message', { step, text: res.text || '', reasoning: String(res.reasoning || '').slice(0, 20000), toolCalls: calls.map(c => ({ id: c.id, name: c.name, arguments: c.arguments })), usage: { in: res.in ?? null, out: res.out ?? null, reasoning: res.rtok ?? null }, finish: res.finish ?? null, ms: res.ms ?? null });
+   push('assistant/message', { step, text: res.text || '', reasoning: String(res.reasoning || '').slice(0, 20000), toolCalls: calls.map(c => ({ id: c.id, name: c.name, arguments: c.arguments })), usage: { in: res.in ?? null, out: res.out ?? null, reasoning: res.rtok ?? null }, finish: res.finish ?? null, ms: res.ms ?? null, ...(res.trace ? { debug: res.trace } : {}) });
    lastCalls = calls;
    if (!calls.length){ finalText = res.text || ''; status = 'done'; break; }
    for (const call of calls){
@@ -1539,7 +1541,8 @@ const ROF_DSH = (function createDsh(){
     push('tool/call', { step, callId: call.id, name: call.name, arguments: call.arguments });
     const t0 = Date.now();
     let out;
-    try { out = await executeTool(ws, shell, call, {}); }
+    if (isCut(res.finish) && parseArgs(call.arguments).__invalid) out = { output: 'Error: your reply was cut off by the output limit (finish reason: ' + res.finish + '), so the arguments of this tool call are incomplete JSON and nothing was run. Send a shorter tool call (for example create the file in smaller pieces).', isError: true };
+    else try { out = await executeTool(ws, shell, call, {}); }
     catch (e){ if (stopReason()){ status = stopReason(); break outer; } out = { output: 'Tool crashed: ' + String(e.message || e), isError: true }; }
     push('tool/result', { step, callId: call.id, name: call.name, output: out.output, isError: out.isError, ms: Date.now() - t0 });
     messages.push({ role: 'tool', toolCallId: call.id, name: call.name, content: out.output, isError: out.isError });
@@ -1563,8 +1566,17 @@ const ROF_DSH = (function createDsh(){
   }
   for (const v of versions){ v.report ??= renders.get(sha(v.content)) || null; v.status = v.report ? (v.report.passed ? 'passed' : 'needs-repair') : 'written'; v.raw = v.content; }
   const best = versions.at(-1) || null;
-  const result = { version, status, error, steps: steps.length, calls: steps.length, rounds: versions, artifact: best ? { content: best.content, round: best.index, report: best.report, response: best.response, source } : null, usage: totals(steps), log, finalText, messages };
-  push('session/end', { status, steps: steps.length, versions: versions.length, usage: result.usage, error: error ? String(error.message || error).slice(0, 300) : null });
+  // when there is no page at all, say why — the reason is almost always visible in the last step
+  let diag = null;
+  if (content === null && !['stopped', 'timeout', 'error'].includes(status)){
+   const lastA = log.filter(e => e.type === 'assistant/message').at(-1), toolCalls = log.filter(e => e.type === 'tool/call').length, retry = log.filter(e => e.type === 'model/retry').at(-1);
+   const textChars = String(lastA?.text || '').length, cut = isCut(lastA?.finish), broken = (lastA?.toolCalls || []).some(c => parseArgs(c.arguments).__invalid);
+   const lastErr = [...log].reverse().find(e => e.type === 'tool/result' && (e.isError || /\[Command finished with exit code [1-9]\d*\]\s*$/.test(String(e.output))))?.output;
+   const code = status === 'limit' ? 'steps' : cut && broken ? 'cutoff' : !(lastA?.toolCalls || []).length && !textChars ? (cut ? 'budget' : 'empty') : !toolCalls ? 'notools' : 'nofile';
+   diag = { code, steps: steps.length, finish: lastA?.finish ?? null, textChars, reasoningChars: String(lastA?.reasoning || '').length, reasoningTokens: lastA?.usage?.reasoning ?? null, toolCalls, lastError: lastErr ? String(lastErr).slice(0, 300) : null, lastText: String(lastA?.text || '').slice(0, 300), cap: retry?.cap ?? null, retried: !!retry };
+  }
+  const result = { version, status, error, steps: steps.length, calls: steps.length, rounds: versions, artifact: best ? { content: best.content, round: best.index, report: best.report, response: best.response, source } : null, usage: totals(steps), log, finalText, messages, diag };
+  push('session/end', { status, steps: steps.length, versions: versions.length, usage: result.usage, diag: diag?.code ?? null, error: error ? String(error.message || error).slice(0, 300) : null });
   return result;
  }
  const toJsonl = log => log.map(e => JSON.stringify(e)).join('\n') + '\n';
@@ -1953,6 +1965,19 @@ Object.assign(I18N.en, {
  "dsh.logEmpty": "The session log appears here while the agent works.",
  "dsh.noArtifact": "The agent finished without writing /workspace/index.html. Read its last message in the session log.",
  "dsh.noTools": "This model or endpoint seems to refuse tool calling — switch the harness to “Text-only” (above) to test it without tools.",
+ "dsh.noHtmlT": "The agent didn’t produce a page",
+ "dsh.retry": "Step {step} was cut off at the provider’s default output limit (finish: {finish}) — retrying it with max_tokens {cap}.",
+ "dsh.noPageShort": "no page written",
+ "dsh.d.log": "Details are in the session log.",
+ "dsh.rawSample": "Raw response sample · {n} events",
+ "dsh.d.budget": "The model returned an empty reply (finish: {finish}) after reasoning for {r} — it spent its whole output limit before writing anything. ROF sent no limit, so the provider’s own default applied. In Advanced, set “Output-limit parameter” to max_tokens and enter a large number.",
+ "dsh.d.budgetRetried": "Even with max_tokens {cap} the model returned only reasoning (finish: {finish}, {r}) and wrote no file. Its output limit looks very small, or it keeps thinking without acting — try another model.",
+ "dsh.d.cutoff": "The model’s tool call was cut off by the output limit (finish: {finish}), so no file was written. In Advanced, set “Output-limit parameter” to max_tokens and enter a large number.",
+ "dsh.d.cutoffRetried": "The model’s tool call was still cut off at max_tokens {cap} (finish: {finish}), so no file was written. Try a model with a larger output limit.",
+ "dsh.d.empty": "The model returned an empty reply (finish: {finish}, no text, no tool call). This endpoint may not support tool calling for this model — switch the harness to Text-only.",
+ "dsh.d.notools": "The model answered with text only ({chars} characters), never called a tool, and the reply contains no HTML. It may not support tool calling — switch the harness to Text-only.",
+ "dsh.d.steps": "The agent used all {n} model calls without writing an .html file. Last tool error: {err}",
+ "dsh.d.nofile": "The agent stopped after {n} model calls without writing an .html file. Its last message: “{text}”.",
  "dsh.legal": "Compatible with DeepSeek Harness’s minimal profile. ROF AI is independent and is not affiliated with or endorsed by DeepSeek. The “machine” is an in-memory project directory with a small shell emulator, so a model under test can never touch your computer.",
  "h.note": "Text-only fallback: every run uses the same instructions and two viewport checks. Up to 3 model calls within your time limit, no tools. Calls use your provider credits. No optional output cap by default.",
  "dshs.done": "finished",
@@ -2061,6 +2086,19 @@ Object.assign(I18N.vi, {
  "dsh.logEmpty": "Session log sẽ hiện ở đây khi agent làm việc.",
  "dsh.noArtifact": "Agent kết thúc mà không ghi /workspace/index.html. Hãy đọc tin nhắn cuối của nó trong session log.",
  "dsh.noTools": "Model hoặc endpoint này có vẻ từ chối tool calling — hãy chuyển khung sang “Chỉ văn bản” (phía trên) để test không dùng tool.",
+ "dsh.noHtmlT": "Agent không tạo ra trang nào",
+ "dsh.retry": "Bước {step} bị cắt ở giới hạn output mặc định của nhà cung cấp (kết thúc: {finish}) — chạy lại với max_tokens {cap}.",
+ "dsh.noPageShort": "chưa ghi được trang nào",
+ "dsh.d.log": "Chi tiết nằm trong session log.",
+ "dsh.rawSample": "Mẫu phản hồi thô · {n} sự kiện",
+ "dsh.d.budget": "Model trả về câu trả lời rỗng (kết thúc: {finish}) sau khi suy luận {r} — nó dùng hết giới hạn output trước khi viết được gì. ROF không gửi giới hạn nên áp dụng mặc định của nhà cung cấp. Trong Nâng cao, đặt “Tham số giới hạn output” là max_tokens và nhập một số lớn.",
+ "dsh.d.budgetRetried": "Dù đã đặt max_tokens {cap}, model vẫn chỉ trả về phần suy luận (kết thúc: {finish}, {r}) và không ghi file nào. Giới hạn output của nó có vẻ rất nhỏ, hoặc nó cứ suy nghĩ mà không hành động — hãy thử model khác.",
+ "dsh.d.cutoff": "Tool call của model bị cắt bởi giới hạn output (kết thúc: {finish}) nên chưa file nào được ghi. Trong Nâng cao, đặt “Tham số giới hạn output” là max_tokens và nhập một số lớn.",
+ "dsh.d.cutoffRetried": "Tool call của model vẫn bị cắt dù đã đặt max_tokens {cap} (kết thúc: {finish}) nên chưa file nào được ghi. Hãy thử model có giới hạn output lớn hơn.",
+ "dsh.d.empty": "Model trả về câu trả lời rỗng (kết thúc: {finish}, không có văn bản, không gọi tool). Endpoint này có thể không hỗ trợ tool calling cho model này — hãy chuyển khung sang Chỉ văn bản.",
+ "dsh.d.notools": "Model chỉ trả lời bằng văn bản ({chars} ký tự), không gọi tool nào và câu trả lời không có HTML. Có thể nó không hỗ trợ tool calling — hãy chuyển khung sang Chỉ văn bản.",
+ "dsh.d.steps": "Agent đã dùng hết {n} lượt gọi model mà chưa ghi được file .html. Lỗi tool gần nhất: {err}",
+ "dsh.d.nofile": "Agent dừng sau {n} lượt gọi model mà chưa ghi file .html nào. Tin nhắn cuối của nó: “{text}”.",
  "dsh.legal": "Tương thích cấu hình minimal của DeepSeek Harness. ROF AI độc lập, không liên kết hay được DeepSeek bảo trợ. “Máy” ở đây là một thư mục dự án trong bộ nhớ cùng một shell mô phỏng nhỏ, nên model đang test không thể chạm vào máy của bạn.",
  "h.note": "Dự phòng chỉ-văn-bản: mọi lần chạy dùng cùng chỉ dẫn và kiểm tra hai kích thước màn hình. Tối đa 3 lượt gọi model trong giới hạn thời gian của bạn, không dùng tool. Có sử dụng credit của nhà cung cấp. Mặc định không gửi giới hạn output tùy chọn.",
  "dshs.done": "hoàn tất",
@@ -2562,10 +2600,11 @@ function toolAccumulator(proto){
   function feed(j, type){
    if (!j || typeof j !== 'object') return;
    if (proto === 'openai'){
-    const ch = j.choices?.[0];
-    if (type === 'full'){ const m = ch?.message; (m?.tool_calls || []).forEach((tc, i) => st.openai.set(i, { id: tc.id || '', name: tc.function?.name || '', arguments: tc.function?.arguments ?? '' })); if (m?.reasoning_content) st.reasoning = m.reasoning_content; return; }
-    const d = ch?.delta; if (!d) return;
+    const ch = j.choices?.[0], whole = m => { const list = m?.tool_calls?.length ? m.tool_calls : m?.function_call ? [{ function: m.function_call }] : []; list.forEach((tc, i) => st.openai.set(i, { id: tc.id || '', name: tc.function?.name || '', arguments: tc.function?.arguments ?? '' })); if (m?.reasoning_content) st.reasoning = m.reasoning_content; };
+    if (type === 'full'){ whole(ch?.message); return; }
+    const d = ch?.delta; if (!d){ if (ch?.message && !st.openai.size) whole(ch.message); return; }        // some gateways end a stream with the complete message instead of deltas
     if (d.reasoning_content) st.reasoning += d.reasoning_content;
+    if (d.function_call && !d.tool_calls) d.tool_calls = [{ index: 0, function: d.function_call }];             // legacy single function_call
     for (const tc of d.tool_calls || []){
      const idx = tc.index ?? (tc.id ? st.openai.size : Math.max(0, st.openai.size - 1));
      const e = st.openai.get(idx) || st.openai.set(idx, { id: '', name: '', arguments: '' }).get(idx);
@@ -2611,10 +2650,13 @@ function toolAccumulator(proto){
 }
 /* one model turn: history + tool schemas in, text / reasoning / tool calls / usage out */
 async function agentChat(c, req){
-  const acc = toolAccumulator(c.proto);
-  const res = await chat(c, { signal: req.signal, stream: c.stream, temperature: req.sampling?.temperature ?? 1, onDelta: req.onDelta, onRaw: (j, type) => acc.feed(j, type), rawBody: () => agentBody(c, req) });
+  const acc = toolAccumulator(c.proto), head = [], tail = []; let n = 0;
+  const res = await chat(c, { signal: req.signal, stream: c.stream, temperature: req.sampling?.temperature ?? 1, onDelta: req.onDelta, rawBody: () => agentBody(c, req),
+    onRaw: (j, type) => { acc.feed(j, type); n++; const line = (type ? type + ' ' : '') + JSON.stringify(j).slice(0, 400); if (head.length < 5) head.push(line); else { tail.push(line); if (tail.length > 3) tail.shift(); } } });
   const { toolCalls, native } = acc.finish();
-  return { ...res, toolCalls, native };
+  // a reply with neither text nor tool calls is the one case that needs a closer look: keep the first / last raw events (never the request, so never a key)
+  const trace = !toolCalls.length && !(res.text || '').trim() ? { events: n, contentType: res.ctype || null, streamed: !!res.streamed, head, tail } : null;
+  return { ...res, toolCalls, native, trace };
 }
 
 async function fetchModels(c){
@@ -2986,7 +3028,7 @@ function setOverlay(kind){
     idle: ['code', t('ht.emptyT'), t('ht.emptyP')],
     gen:  html.live?.reasoning && !html.live.chars ? ['bike', t('ht.thinkT'), t('ht.thinkP', { n: fmtNum(html.live.reasoning) })]
                                                    : ['bike', t('ht.genT'), t('ht.genP', { n: fmtNum(html.raw.length) })],
-    nohtml: ['alert', t('ht.noHtmlT'), diagText()],
+    nohtml: html.mode==='dsh'&&html.err?['alert',t('dsh.noHtmlT'),html.err]:['alert', t('ht.noHtmlT'), diagText()],
     err:  ['alert', t('ht.err'), html.err]
   }[kind];
   o.innerHTML = `<div class="big">${ico(m[0])}</div><b>${esc(m[1])}</b><p>${esc(m[2])}</p>`;
@@ -3082,7 +3124,7 @@ async function runHtml(){
     if(timedOut||result.status==='timeout')html.err=errText(new ApiError('timeout','',{ms:c.timeoutMs}));
     else if(result.error)html.err=errText(result.error)+(toolsRefused(result)?' '+t('dsh.noTools'):'');
     else if(result.status==='empty')html.err=diagText();
-    else if(html.mode==='dsh'&&!result.artifact&&['done','limit'].includes(result.status))html.err=t('dsh.noArtifact');
+    else if(html.mode==='dsh'&&!result.artifact&&['done','limit'].includes(result.status))html.err=dshNoArtifact(result);
     if(result.artifact){html.harnessRound=result.artifact.round;html.out=result.artifact.content;html.raw=html.out;}
     else{html.raw=lastResponse.text||html.raw;html.reasoning=lastResponse.reasoning||html.reasoning;}
   }catch(e){
@@ -3121,14 +3163,40 @@ async function renderArtifact(source,{signal,deadline}){
 function harnessStatus(status){return t(status==='done'?'h.doneStatus':'h.'+status);}
 /* ---------- DSH-compatible harness: run, session timeline, report ---------- */
 function dshStep(){ return html.live?.step || (html.session || []).filter(e => e.type === 'assistant/message').length; }
+/* A provider that is sent no output limit applies its own default, and reasoning models can spend all of it thinking (or cut a tool call in half).
+   When that happens and nothing was limiting the reply on our side, the step is retried once with an explicit large limit — stepping down to
+   whatever the provider says it accepts — and that limit is kept for the rest of the run. Every retry is written to the session log. */
+const cutOff = r => /length|max_?tokens|max_output|incomplete/i.test(String(r?.finish ?? ''));
+function lowerCap(e, cap){
+  const m = String(e.detail ?? '').toLowerCase();
+  if (!(/max_tokens|max_completion_tokens|maxoutputtokens|max_output_tokens|output tokens|completion tokens|afford|credits/.test(m) && /range|maximum|at most|less than|exceed|too large|too many|must be|afford|supports|limit/.test(m))) return 0;
+  let n = [...m.matchAll(/\d[\d,]*/g)].map(x => +x[0].replace(/,/g, '')).filter(v => v >= 256 && v < cap).sort((a, b) => b - a)[0];
+  if (n && /exclusive/.test(m)) n -= 1;
+  return n || Math.floor(cap / 2);
+}
 async function runDshSession(c, prompt, onDelta){
   html.liveVersions = []; let lastReplay = 0;
   const live = (step, patch) => { html.live = { step, chars: 0, reasoning: 0, ...patch }; };
-  return ROF_DSH.run({
+  const cap = { n: null }, ours = c.tokenField !== 'omit' && c.maxOut != null;            // ours: the user chose a limit — never override it
+  const result = await ROF_DSH.run({
     prompt, deadline: c.deadline, signal: html.ctl.signal, extract: extractHtml, render: renderArtifact, inspect: ROF_HARNESS.inspect, maxSteps: ROF_DSH.LIMITS.maxSteps,
-    meta: { model: c.model, protocol: c.proto, route: routeOf(c.route, c.base), stream: c.stream },
-    callModel: req => { live(req.step); html.raw = ''; html.reasoning = ''; scheduleDsh();
-      return agentChat(c, { ...req, onDelta: (text, piece, o) => { html.raw = text; html.reasoning = o?.reasoning || ''; html.live = { step: req.step, chars: text.length, reasoning: html.reasoning.length }; scheduleDsh(); onDelta?.(text, piece, o); } }); },
+    meta: { model: c.model, protocol: c.proto, route: routeOf(c.route, c.base), stream: c.stream, outputLimit: ours ? c.maxOut : null },
+    callModel: async req => {
+      live(req.step); html.raw = ''; html.reasoning = ''; scheduleDsh();
+      const go = cc => agentChat(cc, { ...req, onDelta: (text, piece, o) => { html.raw = text; html.reasoning = o?.reasoning || ''; html.live = { step: req.step, chars: text.length, reasoning: html.reasoning.length }; scheduleDsh(); onDelta?.(text, piece, o); } });
+      const res = await go(cap.n ? { ...c, tokenField: 'auto', maxOut: cap.n } : c);
+      if (ours || cap.n || c.proto === 'anthropic' || !cutOff(res)) return res;
+      for (let n = 131072, i = 0; i < 6 && n >= 2048; i++){
+        req.note('model/retry', { reason: 'output-limit', finish: res.finish, cap: n, discarded: { chars: (res.text || '').length, reasoning: (res.reasoning || '').length, out: res.out ?? null } });
+        html.raw = ''; html.reasoning = '';
+        try {
+          const again = await go({ ...c, tokenField: 'auto', maxOut: n }); cap.n = n;
+          for (const k of ['in', 'out', 'rtok']) if (res[k] != null) again[k] = (again[k] ?? 0) + res[k];       // the discarded attempt was paid for too
+          return again;
+        } catch (e){ const lower = e.kind === 'http' && [400, 402, 422].includes(e.status) ? lowerCap(e, n) : 0; if (!lower) throw e; n = lower; }
+      }
+      return res;
+    },
     onVersion: v => {                      // watch the page grow: the newest version is previewed while the agent keeps working
       html.liveVersions.push({ index: v.index, step: v.step, status: 'written', content: v.content });
       html.out = v.content; html.harnessRound = v.index;
@@ -3136,6 +3204,15 @@ async function runDshSession(c, prompt, onDelta){
     },
     onEvent: ev => { html.session.push(ev); scheduleDsh(); }
   });
+  result.outputLimit = ours ? c.maxOut : cap.n;
+  return result;
+}
+/* why there is no page: the specific reason, from the last step of the session */
+function dshNoArtifact(r){
+  const d = r?.diag; if (!d) return t('dsh.noArtifact');
+  const key = d.code + ((d.code === 'budget' || d.code === 'cutoff') && d.retried ? 'Retried' : '');
+  const think = d.reasoningTokens != null ? fmtNum(d.reasoningTokens) + ' tok' : d.reasoningChars ? fmtNum(d.reasoningChars) + ' chars' : '0';
+  return t('dsh.d.' + key, { n: d.steps, finish: d.finish || '—', r: think, chars: fmtNum(d.textChars), cap: d.cap ? fmtNum(d.cap) : '', err: d.lastError || '—', text: d.lastText || '—' }) + ' ' + t('dsh.d.log');
 }
 const toolsRefused = r => html.mode === 'dsh' && r.error?.kind === 'http' && [400, 404, 415, 422, 501].includes(r.error.status) && /tool|function/i.test(String(r.error.detail)) && (r.steps || 0) <= 1;
 function scheduleDsh(){ if (html._dshT) return; html._dshT = setTimeout(() => { html._dshT = null; renderDsh(); renderHarnessProgress(); }, 120); }
@@ -3163,7 +3240,7 @@ function renderHarnessProgress(){
   if (html.mode !== 'dsh'){ el.textContent = html.phase === 'running' && html.harnessEvent ? t('h.round', { n: html.harnessEvent.round }) + ' · ' + t('h.' + (['generating', 'writing', 'rendering'].includes(html.harnessEvent.stage) ? html.harnessEvent.stage : 'checked')) : html.harness ? t('h.done', { status: harnessStatus(html.harness.status || 'done'), n: html.harnessRound || '—' }) : t('h.idle'); return; }
   const ev = html.session || [], last = ev.at(-1);
   if (html.phase === 'running') el.textContent = t('dsh.step', { n: Math.max(1, dshStep()), max: ROF_DSH.LIMITS.maxSteps }) + ' · ' + (last?.type === 'tool/call' ? t('dsh.running', { name: last.name }) : html.live?.reasoning && !html.live.chars ? t('dsh.thinking') : t('dsh.waiting'));
-  else if (html.harness?.version) el.textContent = t('dsh.finished', { status: t('dshs.' + html.harness.status), steps: html.harness.steps, v: html.harness.rounds.length });
+  else if (html.harness?.version) el.textContent = t('dsh.finished', { status: html.harness.diag ? t('dsh.noPageShort') : t('dshs.' + html.harness.status), steps: html.harness.steps, v: html.harness.rounds.length });
   else el.textContent = t('dsh.idle');
 }
 
@@ -3185,6 +3262,7 @@ function renderDsh(){
     const u = e.usage || {}, chips = [u.in != null && `${fmtNum(u.in)} in`, u.out != null && `${fmtNum(u.out)} out`, u.reasoning != null && `${fmtNum(u.reasoning)} reasoning`, e.finish, e.ms != null && fmtMs(e.ms)].filter(Boolean);
     h += `<li class="dsh-ev dsh-step"><div class="dsh-eh"><b>${esc(t('dsh.stepN', { n: e.step }))}</b><span>${esc(t('dsh.assistant'))}</span>${chips.map(c => `<i class="dsh-tag">${esc(c)}</i>`).join('')}</div>`
       + (e.reasoning ? `<details data-seq="${e.seq}"${open(e.seq)}><summary>${esc(t('dsh.thinkingN', { n: fmtNum(e.reasoning.length) }))}</summary><pre class="dsh-think">${esc(dshClip(e.reasoning, 6000))}</pre></details>` : '')
+      + (e.debug ? `<details data-seq="${e.seq}"${open(e.seq)}><summary>${esc(t('dsh.rawSample', { n: fmtNum(e.debug.events) }))}</summary><pre class="dsh-think">${esc(JSON.stringify(e.debug, null, 1))}</pre></details>` : '')
       + (e.text ? `<div class="dsh-text">${esc(dshClip(e.text, 3000))}</div>` : (!e.toolCalls?.length ? `<div class="dsh-text dsh-dim">${esc(t('dsh.emptyReply'))}</div>` : '')) + '</li>';
    } else if (e.type === 'tool/call'){
     const r = results.get(e.callId), bad = r?.isError || (r && /\[Command finished with exit code [1-9]\d*\]\s*$/.test(r.output)), a = dshArgs(e);
@@ -3194,8 +3272,11 @@ function renderDsh(){
     h += `<li class="dsh-ev dsh-ver"><button type="button" data-v="${e.version}" ${html.phase === 'running' ? 'disabled' : ''}>${ico('code')}<span>${esc(t('dsh.version', { n: e.version, kb: (e.bytes / 1024).toFixed(1) }))}</span></button></li>`;
    } else if (e.type === 'render/report' && e.why === 'final check'){
     h += `<li class="dsh-ev dsh-rep ${e.passed ? 'ok' : 'bad'}">${ico(e.passed ? 'check' : 'alert')}<span>${esc(t(e.passed ? 'dsh.finalOk' : 'dsh.finalBad', { n: (e.failures || []).length }))}</span></li>`;
+   } else if (e.type === 'model/retry'){
+    h += `<li class="dsh-ev dsh-rep bad">${ico('alert')}<span>${esc(t('dsh.retry', { step: e.step, finish: e.finish || '—', cap: fmtNum(e.cap) }))}</span></li>`;
    } else if (e.type === 'session/end'){
-    h += `<li class="dsh-ev dsh-end ${e.status === 'done' ? 'ok' : e.status === 'error' || e.status === 'timeout' ? 'bad' : ''}"><b>${esc(t('dsh.end'))}</b> ${esc(t('dshs.' + e.status))} · ${esc(t('dsh.endSteps', { n: e.steps, v: e.versions }))}${e.error ? ' · ' + esc(e.error) : ''}</li>`;
+    const why = e.diag && html.harness?.diag ? `<div class="dsh-why">${esc(dshNoArtifact(html.harness))}</div>` : '';
+    h += `<li class="dsh-ev dsh-end ${e.status === 'done' && !e.diag ? 'ok' : e.status === 'error' || e.status === 'timeout' || e.diag ? 'bad' : ''}"><div><div><b>${esc(t('dsh.end'))}</b> ${esc(e.diag ? t('dsh.noPageShort') : t('dshs.' + e.status))} · ${esc(t('dsh.endSteps', { n: e.steps, v: e.versions }))}${e.error ? ' · ' + esc(e.error) : ''}</div>${why}</div></li>`;
    }
   }
   if (html.phase === 'running'){
@@ -3211,7 +3292,7 @@ function renderHarnessHistory(){
   const history = $('#harnessHistory'); if (!history) return;
   const dsh = html.mode === 'dsh', running = html.phase === 'running';
   const rounds = dsh ? (running ? html.liveVersions : (html.harness?.rounds || [])) : (html.harness?.rounds || []);
-  $('#harnessReport').disabled = running || !html.harness?.rounds?.length;
+  $('#harnessReport').disabled = running || !(html.harness?.rounds?.length || (dsh && html.session?.length));
   $('#dshLogDl').disabled = running || !(html.session || []).length;
   renderHarnessProgress();
   history.replaceChildren();
@@ -3238,11 +3319,11 @@ function selectHarnessRound(index){
   html.harnessRound = index; html.out = round.content || ''; html.raw = round.raw || round.content || ''; html.reasoning = round.response?.reasoning || ''; replayBoth(); renderHtmlStatic();
 }
 function downloadHarnessReport(){
-  const h = html.harness; if (!h?.rounds.length || html.phase === 'running') return;
-  const dsh = String(h.version).startsWith('dsh');
+  const h = html.harness; if (!h || html.phase === 'running') return;
+  const dsh = String(h.version).startsWith('dsh'); if (!h.rounds.length && !dsh) return;
   const report = dsh ? {
     tool: 'ROF AI', harness: h.version, profile: 'DeepSeek Harness minimal profile (compatible re-implementation, not affiliated with DeepSeek)', requestedModel: html.model, prompt: html.prompt,
-    systemPrompt: ROF_DSH.SYSTEM_PROMPT, tools: ROF_DSH.TOOLS, sampling: ROF_DSH.SAMPLING, limits: { maxModelCalls: ROF_DSH.LIMITS.maxSteps }, status: h.status, modelCalls: h.steps, usage: h.usage, selectedVersion: html.harnessRound, finalVersion: h.artifact?.round ?? null,
+    systemPrompt: ROF_DSH.SYSTEM_PROMPT, tools: ROF_DSH.TOOLS, sampling: ROF_DSH.SAMPLING, limits: { maxModelCalls: ROF_DSH.LIMITS.maxSteps }, status: h.status, why: h.diag || null, outputLimit: h.outputLimit ?? null, modelCalls: h.steps, usage: h.usage, selectedVersion: html.harnessRound, finalVersion: h.artifact?.round ?? null,
     versions: h.rounds.map(r => ({ index: r.index, step: r.step, status: r.status, html: r.content, report: r.report })), session: html.session,
     limitations: ['The "machine" is an in-memory directory and a small shell emulator: models cannot run python/node/git or reach the network.', 'Technical checks do not judge artistic quality or prove model identity.', 'Images and reference HTML are never sent to the model.']
   } : { tool: 'ROF AI', harnessVersion: h.version, requestedModel: html.model, prompt: html.prompt, instructions: ROF_HARNESS.instructions, status: h.status, maxModelCalls: 3, maxTotalSeconds: 600, feedback: 'text-only', usage: h.usage, selectedRound: html.harnessRound, bestRound: h.artifact?.round ?? null,
