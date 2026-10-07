@@ -92,7 +92,7 @@ from answers, and logs only `METHOD host/path → status` — never keys, bodies
 ## The genuine reference (per model)
 
 The left pane shows the genuine sample of **the model you selected**. Samples live in `<script type="application/json" id="rof-reference-pool">` (schema `rof-reference-pool/2`):
-one entry per model, each with a `match` list of regular expressions tested against the Model field. Today there are two: **LUNA 6.0** (`openai/gpt-6-luna`, 3 genuine runs) and **DeepSeek V4.1 Flash** (9 genuine runs, DSH harness). An entry can also list `official` hosts: on DeepSeek's own API
+one entry per model, each with a `match` list of regular expressions tested against the Model field. Today there are two: **LUNA 6.0** (`openai/gpt-6-luna`, 3 genuine runs) and **DeepSeek V4.1 Flash** (10 genuine runs, DSH harness). An entry can also list `official` hosts: on DeepSeek's own API
 (`api.deepseek.com`) there are only two lines, flash and pro, so any "flash" id matches; on other vendors only a name that says 4.1 flash does. For any other model the pane says **"No comparison sample yet"**.
 
 Only the `displayed` round of an entry is shown (the best one: passes every check and renders correctly). Every other run and round — including the ones that failed the automatic
@@ -100,6 +100,24 @@ checks — stays in the background, never displayed, with the HTML, checks, meas
 across genuine runs. A genuine model sometimes fails the checks, and a page that passes proves nothing by itself; a handful of samples per model is too few to judge from (aim for ~10).
 
 To add a model, append an entry to `entries`. *Load reference file* replaces the pane temporarily (memory only) until the model changes.
+
+## Real or fake? — the comparison step
+
+When an HTML test finishes, ROF compares the result with the genuine samples of the selected model (the hidden pool) and shows the result under the output. Principles:
+
+- The automatic render checks (pass / fail) are **not used**: a good page does not prove a real model, a broken one does not prove a fake.
+- One genuine run varies a lot, so the page is judged against the **spread** of the genuine runs. To know that spread honestly, every genuine sample is scored against the *other* genuine samples
+  (leave-one-out); the candidate's score is then placed in that distribution ("k % of genuine runs score no higher"). About 1 in *n* genuine runs lands at the bottom too.
+- **No verdict below 8 genuine samples** (about 10 is fair); with fewer, the figures are shown for information only.
+- What is compared — **code**: size and counts, techniques (transform-box, `<use>` tiles, reduced-motion rule, …), vocabulary (keyframe / class / id words, colour families);
+  **thinking**: model calls, output and reasoning tokens, reasoning share, tool habits (sandbox probing, renders, writes) — only against samples made with the same harness, and as token counts, not reasoning text;
+  **line by line**: a diff against the closest genuine sample. Genuine runs of one model share very few identical lines, so identical lines are not what identifies a model.
+- It is a consistency check, not a classifier: a different strong model (LUNA scored against the DeepSeek samples) lands at the edge, and 1–2 of the 10 genuine DeepSeek runs do too.
+
+## Token cost of the agent harness
+
+Every step re-sends the whole history (and DeepSeek requires its reasoning to be sent back while it uses tools), so input grows with every call: a 25-step run was 2.5 M input tokens for 140 k output.
+The page shows the running total (`Σ … in · … out`); *Advanced → Token budget* stops the run once input + output reaches the number you set (0 = none).
 
 ## Measuring in a background tab
 
