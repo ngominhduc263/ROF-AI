@@ -2540,6 +2540,7 @@ Object.assign(I18N.en, {
  "err.anthropic403.relay": "the relay sent it from {colo}, which may be outside the regions Anthropic serves. ",
  "err.anthropic403.relayUnknown": "the relay sent it from its own address. ",
  "route.autoDirect": "Anthropic refused the relay’s address — called straight from this browser instead.",
+ "err.anthropicWs": "This key is not tied to one workspace, so Anthropic wants the workspace named on every call. In Advanced → Extra headers (JSON) fill in {\"anthropic-workspace-id\":\"wrkspc_…\"} (the ID is on the workspace's page in the Anthropic Console; the legacy Default workspace may have none — then create a named workspace and a key inside it).",
  "err.anthropicV1": "Anthropic has nothing at {url}: its API lives under /v1, and the page only appends /models or /messages to what you typed. Set the base URL to https://api.anthropic.com/v1 (the browser also sees the missing CORS headers on that 404 as a \"network\" error)."
 });
 Object.assign(I18N.vi, {
@@ -2857,6 +2858,7 @@ Object.assign(I18N.vi, {
  "err.anthropic403.relay": "relay đã gửi từ {colo}, có thể nằm ngoài các vùng Anthropic phục vụ. ",
  "err.anthropic403.relayUnknown": "relay đã gửi từ địa chỉ riêng của nó. ",
  "route.autoDirect": "Anthropic từ chối địa chỉ của relay — đã gọi thẳng từ trình duyệt này.",
+ "err.anthropicWs": "Key này không gắn với một workspace nào nên Anthropic bắt khai báo workspace ở mỗi lần gọi. Trong Nâng cao → Header bổ sung (JSON) điền {\"anthropic-workspace-id\":\"wrkspc_…\"} (ID nằm ở trang của workspace trong Anthropic Console; workspace Default cũ có thể không có ID — khi đó tạo workspace có tên rồi tạo key ngay trong đó).",
  "err.anthropicV1": "Anthropic không có gì ở {url}: API của Anthropic nằm dưới /v1, còn trang chỉ nối thêm /models hay /messages vào những gì anh gõ. Hãy đặt Base URL là https://api.anthropic.com/v1 (trình duyệt còn thấy 404 đó thiếu header CORS nên báo thành lỗi \"mạng\")."
 });
 let LANG = 'en';
@@ -3007,7 +3009,7 @@ function errText(e){
     case 'config':  return e.detail;
     case 'http': {
       const anth = e.status === 403 && /request not allowed/i.test(e.detail) && isAnthropicHost(e.url);
-      const hint = e.status === 404 && anthropicNoV1(e.url) ? ' ' + t('err.anthropicV1', { url: shortUrl(e.url) }) : anth ? ' ' + t('err.anthropic403', { where: e.viaRelay ? t(e.colo ? 'err.anthropic403.relay' : 'err.anthropic403.relayUnknown', { colo: e.colo }) : '' }) : [401, 403, 404, 429].includes(e.status) ? ' ' + t('err.' + e.status) : '';
+      const hint = anthropicNeedsWs(e) ? ' ' + t('err.anthropicWs') : e.status === 404 && anthropicNoV1(e.url) ? ' ' + t('err.anthropicV1', { url: shortUrl(e.url) }) : anth ? ' ' + t('err.anthropic403', { where: e.viaRelay ? t(e.colo ? 'err.anthropic403.relay' : 'err.anthropic403.relayUnknown', { colo: e.colo }) : '' }) : [401, 403, 404, 429].includes(e.status) ? ' ' + t('err.' + e.status) : '';
       return `HTTP ${e.status}: ${trunc(one(e.detail), 260)}${hint}${e.url ? ' · ' + (e.method || 'POST') + ' ' + shortUrl(e.url) : ''}`;
     }
     default: return trunc(one(e.detail), 260);
@@ -3055,6 +3057,8 @@ async function detectRelay(){
   }catch{}finally{clearTimeout(timer);}
 }
 const hostOf=base=>{try{return new URL(base).hostname.toLowerCase();}catch{return '';}};
+const anthropicNeedsWs=(e)=>e.status===400&&isAnthropicHost(e.url)&&/anthropic-workspace-id/i.test(e.detail||'');
+function askWorkspaceId(){const f=$('#headers');if(!f||f.value.trim())return;f.closest('details')?.setAttribute('open','');f.value='{"anthropic-workspace-id":""}';f.focus();f.setSelectionRange(f.value.length-2,f.value.length-2);}   // open Advanced with the header ready to fill
 const anthropicNoV1=u=>{try{return isAnthropicHost(u)&&!/^\/v1(\/|$)/.test(new URL(u).pathname);}catch{return false;}};   // the URL is used as typed, so a missing /v1 is explained, not added
 const isAnthropicHost=base=>{try{return new URL(base).hostname.toLowerCase()==='api.anthropic.com';}catch{return false;}};
 const directHosts=new Set();      // api.anthropic.com after it refused the relay's address: called from the browser instead (automatic route only)
@@ -3105,6 +3109,7 @@ async function http(c,url,{method='GET',body,signal}={}){
         try{const again=await http(c,url,{method,body,signal});toast(t('route.autoDirect'));renderRoute();return again;}
         catch(e2){directHosts.delete('api.anthropic.com');throw e2 instanceof ApiError&&e2.kind==='http'?e2:err;}      // a real answer from Anthropic (e.g. 401) beats the relay's 403; a network failure keeps the original
       }
+      if(anthropicNeedsWs(err))askWorkspaceId();
       throw err;
     }
     return {res,touch:()=>{},done,fail};
