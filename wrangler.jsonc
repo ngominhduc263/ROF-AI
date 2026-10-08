@@ -1,0 +1,12 @@
+{
+  // ROF AI on Cloudflare Workers: the page (cloudflare/public/index.html) + the /api relay (cloudflare/worker.mjs).
+  // `name` must match the Worker's name in the Cloudflare dashboard (Workers Builds refuses a mismatch).
+  "name": "rof-ai",
+  "main": "cloudflare/worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "cloudflare/public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  }
+}

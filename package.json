@@ -7,8 +7,8 @@
   "scripts": {
     "start": "node server.mjs",
     "cf:prepare": "mkdir -p cloudflare/public && cp index.html cloudflare/public/index.html",
-    "cf:deploy": "npm run cf:prepare && cd cloudflare && npx wrangler deploy",
-    "cf:dev": "npm run cf:prepare && cd cloudflare && npx wrangler dev"
+    "cf:deploy": "npm run cf:prepare && npx wrangler deploy",
+    "cf:dev": "npm run cf:prepare && npx wrangler dev"
   },
   "engines": {
     "node": ">=18"
