@@ -19,14 +19,11 @@
  *   ALLOW_CLIENT_PROXY   1/0 — allow the page to choose the proxy per request (default = ALLOW_PRIVATE)
  *   ALLOWED_HOSTS        extra comma-separated Host header values accepted (non-loopback deployments)
  *   IDLE_TIMEOUT_S       abort an upstream call that sends nothing for this long (default 600)
- *   PROBE_BASE           where the BazaarLink probe API lives (default https://bazaarlink.ai)
  *
  * Routes
  *   GET  /                    index.html
  *   GET  /api/health          {app, relay, renderer, tokenRequired, clientProxy, …} — the page reads this to enable the token / proxy fields
  *   POST /api/relay           {url, method, headers, body, proxy?} → the provider's answer, streamed (x-rof-source: provider)
- *   POST /api/probe/start     → POST  {PROBE_BASE}/api/probe/run           (x-rof-source: bazaarlink)
- *   GET  /api/probe/status    → GET   {PROBE_BASE}/api/probe/run/{id}      (x-rof-source: bazaarlink)
  * Errors produced by the relay itself carry x-rof-source: rof-relay, so the page can tell them apart from a provider's own 401/403.
  */
 import http from 'node:http';
@@ -48,7 +45,6 @@ const ALLOW_PRIVATE = flag(process.env.ALLOW_PRIVATE, LOOPBACK);
 const ALLOW_CLIENT_PROXY = flag(process.env.ALLOW_CLIENT_PROXY, ALLOW_PRIVATE);
 const IDLE_MS = (Number(process.env.IDLE_TIMEOUT_S) || 600) * 1000;
 const MAX_BODY = 16 * 1024 * 1024;
-const PROBE_BASE = (process.env.PROBE_BASE || 'https://bazaarlink.ai').replace(/\/+$/, '');
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const EXTRA_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
@@ -265,22 +261,6 @@ async function handleRelay(req, res){
   try { job = await readJson(req, MAX_BODY); } catch (e){ return relayError(res, e.status || 400, e.message); }
   return forward(job, res, 'provider');
 }
-/* BazaarLink's probe API, called from here so the browser never needs CORS access to it */
-async function handleProbe(req, res, url){
-  if (!guard(req, res)) return;
-  let job;
-  if (url.pathname === '/api/probe/start'){
-    if (req.method !== 'POST') return relayError(res, 405, 'Use POST.');
-    let body; try { body = await readJson(req, 1024 * 1024); } catch (e){ return relayError(res, e.status || 400, e.message); }
-    job = { url: PROBE_BASE + '/api/probe/run', method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) };
-  } else {
-    if (req.method !== 'GET') return relayError(res, 405, 'Use GET.');
-    const id = url.searchParams.get('id') || '';
-    if (!/^[A-Za-z0-9_-]{1,160}$/.test(id)) return relayError(res, 400, 'Invalid run id.');
-    job = { url: `${PROBE_BASE}/api/probe/run/${encodeURIComponent(id)}`, method: 'GET', headers: { accept: 'application/json' } };
-  }
-  return forward(job, res, 'bazaarlink');
-}
 /* performs one upstream call and streams the answer back; `source` tells the page whose answer it is */
 async function forward(job, res, source){
   let target;
@@ -348,10 +328,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/health'){
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      return res.end(JSON.stringify({ app: 'rof-ai', relay: true, renderer: 'browser', probe: true, tokenRequired: !!TOKEN, proxy: DEFAULT_PROXY?.label ?? null, proxyKind: DEFAULT_PROXY?.kind ?? null, clientProxy: ALLOW_CLIENT_PROXY, privateTargets: ALLOW_PRIVATE }));
+      return res.end(JSON.stringify({ app: 'rof-ai', relay: true, renderer: 'browser', tokenRequired: !!TOKEN, proxy: DEFAULT_PROXY?.label ?? null, proxyKind: DEFAULT_PROXY?.kind ?? null, clientProxy: ALLOW_CLIENT_PROXY, privateTargets: ALLOW_PRIVATE }));
     }
     if (req.method === 'POST' && url.pathname === '/api/relay') return await handleRelay(req, res);
-    if (url.pathname === '/api/probe/start' || url.pathname === '/api/probe/status') return await handleProbe(req, res, url);
     res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Not found');
   } catch (e){
     console.error('[relay] internal error:', e.message);

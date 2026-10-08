@@ -1,14 +1,18 @@
 # ROF AI — modelrealoffake (rofai.net)
 
 Web app that tests whether an LLM endpoint is the real model. The page is a single static file (`index.html`);
-an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limits, serves the BazaarLink probe API and adds upstream proxy support.
+an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limits, adds upstream proxy and token support.
 
 - **Connect** to any OpenAI-compatible (Chat Completions or Responses), Anthropic (Messages) or Google Gemini endpoint with a base URL + API key.
   The key lives only in the password field (memory). It is never written to storage, URLs, logs or reports.
-- **Probe test** — runs the official [BazaarLink probe](https://bazaarlink.ai/probe) (identity assessment, evidence and API-integrity checks) after an explicit
-  consent dialog, because the endpoint and key are sent to BazaarLink. The report shows BazaarLink's verdict and reasoning, the resolved identity,
-  the score, and every check grouped by category (Chinese check names are translated; the original stays as a subtitle). Neutral control probes,
-  errored probes and behaviour warnings are listed separately and never counted as passes.
+- **ROF Probe** — our own probe, run from the page against the endpoint you typed (nothing goes to a third party; the key only goes to your endpoint). About 50 small requests:
+  **integrity** (hidden prompt / token inflation, streaming format, independent generation, exact text pass-through, `max_tokens` honoured, model name echoed, cache headers),
+  **security** (prompt-injection resistance, links left untouched, install commands untampered, leaked system prompt, appended ads/links) — these are scored pass / warning / fail —
+  and a **fingerprint** that is only recorded (self-identification EN/ZH, knowledge cutoff and known events, formatting habits, benign boundary prompts, calibrated uncertainty, tokenizer
+  fingerprint from prompt-token counts, random-choice distributions, factual recall, capability vector, JSON discipline, language style, reasoning exposure).
+  Identity is judged only against genuine baselines of the same model; none exist yet, so the verdict is "Collected — no genuine baseline yet". **Download log** saves every request and answer
+  of the run (the key is scrubbed) — a temporary feature used to build the baselines; it will be removed once enough logs exist.
+
 - **HTML test (Cycling Pelican)** — the model builds an animated SVG pelican on a bicycle. The result renders in a sandboxed iframe next to the
   genuine reference, can be downloaded as `.html`, and is auto-checked (standalone document, inline SVG, CSS keyframes, no scripts / external assets,
   visible on desktop and mobile, animation actually moves).
@@ -60,7 +64,7 @@ PROXY=socks5://host:port:user:pass node server.mjs
 
 Open the page from the relay's address (`http://localhost:8787`; the relay's own requests carry no `Origin`, so Origin-restricted gateways such as ShareLLM work).
 The page detects it and routes API calls through the relay (*Advanced → Connection route*: Auto / Direct / Via relay). The relay forwards the call server-side
-and streams the answer back, so CORS never applies. The BazaarLink probe goes through it too.
+and streams the answer back, so CORS never applies.
 
 The page reads `/api/health` and enables the optional fields only when the relay offers them: *Upstream proxy* (`host:port:user:pass`, kept in memory only)
 and *Relay token* (when the relay was started with `RELAY_TOKEN`). Against any other relay both stay disabled.
@@ -77,13 +81,11 @@ With no scheme the relay tries an HTTP `CONNECT` tunnel first and falls back to 
 | `ALLOW_CLIENT_PROXY` | let the page choose the proxy per request (default = `ALLOW_PRIVATE`) |
 | `ALLOWED_HOSTS` | extra accepted `Host` headers for non-loopback deployments |
 | `IDLE_TIMEOUT_S` | abort an upstream call that sends nothing for this long (default 600) |
-| `PROBE_BASE` | where the BazaarLink probe API lives (default `https://bazaarlink.ai`) |
 
 | route | |
 | --- | --- |
 | `GET /api/health` | `{app, relay, renderer, probe, tokenRequired, clientProxy, …}` |
 | `POST /api/relay` | `{url, method, headers, body, proxy?}` → the provider's answer, streamed. Header `x-rof-source: provider` |
-| `POST /api/probe/start`, `GET /api/probe/status?id=` | forwarded to `PROBE_BASE/api/probe/run[/{id}]`. Header `x-rof-source: bazaarlink` |
 
 Answers produced by the relay itself carry `x-rof-source: rof-relay`, so the page never mistakes a provider's own 401/403 for a relay failure.
 Relay safety: it listens on loopback by default, refuses cross-origin and DNS-rebinding requests, blocks private targets unless allowed, strips cookies/HSTS
