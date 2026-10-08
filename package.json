@@ -1,11 +1,14 @@
 {
   "name": "rof-ai",
   "version": "1.0.0",
-  "description": "ROF AI (modelrealoffake) — test whether an LLM endpoint is the real model. Optional zero-dependency relay for CORS / upstream proxies.",
+  "description": "ROF AI (modelrealoffake) \u2014 test whether an LLM endpoint is the real model. Optional zero-dependency relay for CORS / upstream proxies.",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "cf:prepare": "mkdir -p cloudflare/public && cp index.html cloudflare/public/index.html",
+    "cf:deploy": "npm run cf:prepare && cd cloudflare && npx wrangler deploy",
+    "cf:dev": "npm run cf:prepare && cd cloudflare && npx wrangler dev"
   },
   "engines": {
     "node": ">=18"
