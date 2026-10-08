@@ -56,6 +56,7 @@ async function relay(req, env){
   catch (e){ return relayError(502, `Couldn't reach ${target.hostname}: ${String(e?.message || e).slice(0, 200)}`, 'ECONNRESET'); }
   const out = new Headers(); for (const [k, v] of up.headers) if (!DROP_RES.has(k.toLowerCase())) out.set(k, v);
   out.set('x-rof-source', 'provider'); out.set('x-rof-via', 'cloudflare'); out.set('cache-control', 'no-store');
+  if (req.cf?.colo) out.set('x-rof-colo', String(req.cf.colo));       // which Cloudflare data center sent the call — the page names it when a provider refuses the relay's address
   return new Response(up.body, { status: up.status, statusText: up.statusText, headers: out });       // streamed straight through
 }
 
