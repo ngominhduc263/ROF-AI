@@ -10,8 +10,8 @@ an optional zero-dependency Node relay (`server.mjs`) removes browser CORS limit
   **security** (prompt-injection resistance, links left untouched, install commands untampered, leaked system prompt, appended ads/links) — these are scored pass / warning / fail —
   and a **fingerprint** that is only recorded (self-identification EN/ZH, knowledge cutoff and known events, formatting habits, benign boundary prompts, calibrated uncertainty, tokenizer
   fingerprint from prompt-token counts, random-choice distributions, factual recall, capability vector, JSON discipline, language style, reasoning exposure).
-  Identity is judged only against genuine baselines of the same model; none exist yet, so the verdict is "Collected — no genuine baseline yet". **Download log** saves every request and answer
-  of the run (the key is scrubbed) — a temporary feature used to build the baselines; it will be removed once enough logs exist.
+  Identity is judged only against genuine baselines of the same model; none exist yet, so the verdict is "Collected — no genuine baseline yet". *Advanced → Probe rounds* (default 8) repeats the whole probe that many times in one go, and **Download log** saves every request and answer
+  of all rounds in one file (the key is scrubbed) — a temporary feature used to build the baselines; it will be removed once enough logs exist.
 
 - **HTML test (Cycling Pelican)** — the model builds an animated SVG pelican on a bicycle. The result renders in a sandboxed iframe next to the
   genuine reference, can be downloaded as `.html`, and is auto-checked (standalone document, inline SVG, CSS keyframes, no scripts / external assets,

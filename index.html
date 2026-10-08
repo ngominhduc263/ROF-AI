@@ -488,6 +488,8 @@ footer b{color:var(--muted);font-family:var(--display)}
           <input class="input mono" id="maxout" type="number" min="1" step="1" value="100000" disabled><div class="hint" data-i18n="limit.note"></div></div>
         <div class="field c3"><label for="timeout"><span data-i18n="adv.timeout"></span></label>
           <input class="input mono" id="timeout" type="number" min="10" max="1800" step="30" value="900"></div>
+        <div class="field c3"><label for="probeRuns"><span data-i18n="adv.probeRuns"></span></label>
+          <input class="input mono" id="probeRuns" type="number" min="1" max="20" step="1" value="8"></div>
         <div class="field c3"><label class="check"><input type="checkbox" id="probeQuick"><span data-i18n="adv.probeQuick"></span></label></div>
         <div class="field c3"><label for="tokBudget"><span data-i18n="adv.tokBudget"></span></label>
           <input class="input mono" id="tokBudget" type="number" min="0" step="100000" value="0"></div>
@@ -2328,8 +2330,8 @@ Object.assign(I18N.en, {
  "cmp.f.bashShare": "bash share of tool calls (%)",
  "probe.tag": "ROF Probe",
  "probe.desc": "Our own probe: honesty and tampering checks on the endpoint, plus a model fingerprint recorded for comparison with genuine baselines.",
- "probe.m1": "~50 requests",
- "probe.m2": "1–3 min",
+ "probe.m1": "~50 requests per round",
+ "probe.m2": "1–3 min per round",
  "probe.m3": "Key stays with your endpoint",
  "probe.run": "Run ROF Probe",
  "res.disc": "ROF Probe judges how the endpoint behaves. Identity is judged only against genuine baselines of the same model; HTML quality and reported token usage do not prove model identity or billing accuracy.",
@@ -2338,7 +2340,7 @@ Object.assign(I18N.en, {
  "pr.stopped": "Probe stopped.",
  "f.keyNote": "Never saved or logged. Sent only to your endpoint (Direct or ROF relay).",
  "pr.log": "Download log",
- "pr.logTip": "Raw requests and answers of this run — for building genuine baselines",
+ "pr.logTip": "Every request and answer of all rounds, in one file — for building genuine baselines",
  "adv.probeQuick": "Quick probe (3 random samples instead of 5)",
  "bz.v.rof_nobaseline": "Collected — no genuine baseline yet",
  "bz.d.rof_nobaseline": "The endpoint passed every integrity and security check, and its fingerprint was recorded. Identity cannot be judged until genuine baselines of this model exist.",
@@ -2409,7 +2411,9 @@ Object.assign(I18N.en, {
  "rp.k.cacheBlind": "No response headers are visible to the browser, so cache headers cannot be checked here.",
  "rp.k.cacheHit": "Cache hit header: {h}",
  "rp.k.cacheNone": "No cache-hit headers on any response.",
- "rp.k.collected": "Recorded for comparison with genuine baselines."
+ "rp.k.collected": "Recorded for comparison with genuine baselines.",
+ "adv.probeRuns": "Probe rounds (8 = collect a baseline in one go; 1 = single run)",
+ "pr.round": "round {k} of {n}"
 });
 Object.assign(I18N.vi, {
  "bz.progress": "tiến độ",
@@ -2627,8 +2631,8 @@ Object.assign(I18N.vi, {
  "cmp.f.bashShare": "Tỉ lệ bash trong tool call (%)",
  "probe.tag": "ROF Probe",
  "probe.desc": "Probe của riêng ROF: kiểm tra endpoint có trung thực / bị can thiệp không, và ghi lại dấu vân tay model để so với baseline chính hãng.",
- "probe.m1": "~50 request",
- "probe.m2": "1–3 phút",
+ "probe.m1": "~50 request mỗi vòng",
+ "probe.m2": "1–3 phút mỗi vòng",
  "probe.m3": "Key chỉ gửi tới endpoint của anh",
  "probe.run": "Chạy ROF Probe",
  "res.disc": "ROF Probe đánh giá cách endpoint hành xử. Danh tính chỉ được xét so với baseline chính hãng của cùng model; chất lượng HTML và số token báo cáo không tự chứng minh danh tính model hay tính tiền đúng.",
@@ -2637,7 +2641,7 @@ Object.assign(I18N.vi, {
  "pr.stopped": "Đã dừng Probe.",
  "f.keyNote": "Không lưu, không ghi log. Chỉ gửi tới endpoint của anh (Trực tiếp hoặc ROF relay).",
  "pr.log": "Tải log",
- "pr.logTip": "Request và câu trả lời thô của lần chạy này — dùng để dựng baseline chính hãng",
+ "pr.logTip": "Toàn bộ request và câu trả lời của mọi vòng, trong một file — dùng để dựng baseline chính hãng",
  "adv.probeQuick": "Probe nhanh (3 mẫu ngẫu nhiên thay vì 5)",
  "bz.v.rof_nobaseline": "Đã thu thập — chưa có baseline chính hãng",
  "bz.d.rof_nobaseline": "Endpoint qua mọi kiểm tra toàn vẹn và bảo mật, dấu vân tay đã được ghi lại. Chưa thể xét danh tính cho tới khi có baseline chính hãng của model này.",
@@ -2708,7 +2712,9 @@ Object.assign(I18N.vi, {
  "rp.k.cacheBlind": "Trình duyệt không thấy header response nào nên không kiểm tra được cache ở đây.",
  "rp.k.cacheHit": "Header trúng cache: {h}",
  "rp.k.cacheNone": "Không response nào có header trúng cache.",
- "rp.k.collected": "Đã ghi lại để so với baseline chính hãng."
+ "rp.k.collected": "Đã ghi lại để so với baseline chính hãng.",
+ "adv.probeRuns": "Số vòng Probe (8 = thu baseline một lần; 1 = chạy một lần)",
+ "pr.round": "vòng {k}/{n}"
 });
 let LANG = 'en';
 function t(key, p){
@@ -3345,7 +3351,7 @@ const probe={phase:'idle',ctl:null,run:null,meta:null,consent:null,log:null,hidd
 let busy=null;
 function setBusy(k){
   busy=k;
-  for(const id of ['runProbe','runHtml','testConn','fetchModels','htPrompt','htReset','base','proto','model','key','auth','headers','tokenField','route','stream','temp','timeout','variant','hmDsh','hmText','probeQuick'])$('#'+id).disabled=!!k;
+  for(const id of ['runProbe','runHtml','testConn','fetchModels','htPrompt','htReset','base','proto','model','key','auth','headers','tokenField','route','stream','temp','timeout','variant','hmDsh','hmText','probeQuick','probeRuns'])$('#'+id).disabled=!!k;
   $$('#providers button').forEach(b=>b.disabled=!!k);
   $('#dotProbe').hidden=k!=='probe';$('#dotHtml').hidden=k!=='html';
   for(const [id,key]of[['runProbe','probe'],['runHtml','html']])$('#'+id).firstElementChild.outerHTML=k===key?'<span class="spin"></span>':ico('play');
@@ -3446,7 +3452,7 @@ function renderProbe(){
   $('#prBar').classList.toggle('run', running); $('#prBar').firstElementChild.style.width = percent + '%';
   $('#prStop').hidden = !running; $('#prReport').hidden = !probe.run || running || probe.phase === 'error'; $('#prLog').hidden = !probe.log || running;
   $('#prEmpty').hidden = started; $('#prSummary').hidden = !started;
-  $('#prSub').textContent = running ? t('pr.running') : probe.phase === 'done' ? t('pr.done', { s: ((probe.tEnd - probe.t0) / 1000).toFixed(1), model: probe.meta?.model || '' })
+  $('#prSub').textContent = running ? t('pr.running') + (probe.rounds > 1 ? ' · ' + t('pr.round', { k: probe.round, n: probe.rounds }) : '') : probe.phase === 'done' ? t('pr.done', { s: ((probe.tEnd - probe.t0) / 1000).toFixed(1), model: probe.meta?.model || '' })
     : probe.phase === 'stopped' ? t('pr.stopped') : probe.phase === 'error' ? probe.error : t('pr.idle');
   if (!started){ $('#prList').innerHTML = ''; return; }
 
@@ -3530,29 +3536,40 @@ async function runProbe(){
   if(busy)return;
   const c=readConn(),bad=validateConn(c);if(bad)return toast(t(bad),'bad');
   persistConn();showTab('probe');
-  const quick=$('#probeQuick').checked,startedAt=Date.now();
-  Object.assign(probe,{phase:'running',error:'',t0:performance.now(),meta:{host:new URL(c.base).host,model:c.model},ctl:new AbortController(),log:null,hidden:false,
-    run:{status:'running',modelId:c.model,items:ROF_PROBE.SUITE.map(p=>({probeId:p.id,group:p.group,neutral:!!p.neutral,status:'pending',passed:null}))}});
+  const quick=$('#probeQuick').checked,rounds=clamp(Math.floor(Number($('#probeRuns').value)||1),1,20);
+  const emptyItems=()=>ROF_PROBE.SUITE.map(p=>({probeId:p.id,group:p.group,neutral:!!p.neutral,status:'pending',passed:null}));
+  Object.assign(probe,{phase:'running',error:'',t0:performance.now(),meta:{host:new URL(c.base).host,model:c.model},ctl:new AbortController(),log:null,logs:[],lastRun:null,hidden:false,round:1,rounds,
+    run:{status:'running',modelId:c.model,items:emptyItems()}});
   setBusy('probe');renderProbe();
   const secrets=[c.key,c.relayToken,c.upstream,...Object.values(c.extra||{}),...Object.values(c.extra||{}).map(v=>String(v).replace(/^Bearer\s+/i,''))].filter(Boolean);
-  let timedOut=false;c.deadline=Date.now()+c.timeoutMs;
-  const timer=setTimeout(()=>{timedOut=true;probe.ctl?.abort();},c.timeoutMs);
+  const u=new URL(c.base);u.search='';u.hash='';u.username='';u.password='';
+  const meta={claimedModel:c.model,endpoint:u.origin+u.pathname.replace(/\/+$/,''),protocol:c.proto,route:routeOf(c.route,c.base),stream:!!c.stream,tokenField:c.tokenField,temperature:c.temperature,quick,userAgent:navigator.userAgent.slice(0,140),language:navigator.language,rofVersion:'v8'};
   const vis=()=>{if(document.visibilityState==='hidden')probe.hidden=true;};document.addEventListener('visibilitychange',vis);
-  let repaint=0;
+  let timedOut=false,timer=0,repaint=0;
+  const pack=()=>cleanReport({schema:'rofai-probe-logset/1',tool:'ROF AI',probeVersion:ROF_PROBE.version,createdAt:new Date().toISOString(),...meta,rounds:probe.logs.length,requested:rounds,runs:probe.logs.map((l,i)=>({run:i+1,...l}))},secrets);
   try{
-    const res=await ROF_PROBE.run({ask:probeAsk(c,probe.ctl.signal),model:c.model,quick,signal:probe.ctl.signal,
-      onItem:i=>{const k=probe.run.items.findIndex(x=>x.probeId===i.probeId);if(k>=0)probe.run.items[k]={...i};if(performance.now()-repaint>150||i.status==='done'||i.status==='error'){repaint=performance.now();renderProbe();}}});
-    probe.run=ROF_PROBE.buildRun(res,{model:c.model,host:probe.meta.host,startedAt});
-    const u=new URL(c.base);u.search='';u.hash='';u.username='';u.password='';
-    probe.log=cleanReport(ROF_PROBE.buildLog(res,{claimedModel:c.model,endpoint:u.origin+u.pathname.replace(/\/+$/,''),protocol:c.proto,route:routeOf(c.route,c.base),stream:!!c.stream,tokenField:c.tokenField,temperature:c.temperature,
-      quick,tabWasHidden:!!probe.hidden,userAgent:navigator.userAgent.slice(0,140),language:navigator.language,rofVersion:'v8'}),secrets);
+    for(let k=1;k<=rounds;k++){
+      probe.round=k;if(k>1){probe.run={status:'running',modelId:c.model,items:emptyItems()};renderProbe();}
+      timedOut=false;c.deadline=Date.now()+c.timeoutMs;timer=setTimeout(()=>{timedOut=true;probe.ctl?.abort();},c.timeoutMs);       // the time limit applies to each round
+      const startedAt=Date.now(),hiddenBefore=probe.hidden;probe.hidden=document.visibilityState==='hidden';
+      const res=await ROF_PROBE.run({ask:probeAsk(c,probe.ctl.signal),model:c.model,quick,signal:probe.ctl.signal,
+        onItem:i=>{const j=probe.run.items.findIndex(x=>x.probeId===i.probeId);if(j>=0)probe.run.items[j]={...i};if(performance.now()-repaint>150||i.status==='done'||i.status==='error'){repaint=performance.now();renderProbe();}}});
+      clearTimeout(timer);
+      probe.lastRun=probe.run=ROF_PROBE.buildRun(res,{model:c.model,host:probe.meta.host,startedAt});
+      probe.logs.push({...ROF_PROBE.buildLog(res,{}),tabWasHidden:!!probe.hidden});probe.hidden=probe.hidden||hiddenBefore;
+      probe.log=pack();renderProbe();
+    }
     probe.phase='done';
-  }catch(e){probe.phase=e.name==='AbortError'&&!timedOut?'stopped':'error';probe.error=timedOut?errText(new ApiError('timeout','',{ms:c.timeoutMs})):probe.phase==='stopped'?'':errText(e);if(probe.phase==='error')toast(probe.error,'bad');}
-  finally{probe.run?.items?.forEach(i=>{if(i.status==='running')i.status='pending';});clearTimeout(timer);document.removeEventListener('visibilitychange',vis);probe.ctl=null;probe.tEnd=performance.now();secrets.fill('');c.key='';c.relayToken='';c.extra={};setBusy(null);renderProbe();}
+  }catch(e){
+    probe.phase=(e.name==='AbortError'||e.kind==='stopped')&&!timedOut?'stopped':'error';probe.error=timedOut?errText(new ApiError('timeout','',{ms:c.timeoutMs})):probe.phase==='stopped'?'':errText(e);
+    if(probe.phase==='error')toast(probe.error,'bad');
+    if(probe.logs.length){probe.run=probe.lastRun;probe.log=pack();}                      // rounds that finished are kept and downloadable
+  }
+  finally{clearTimeout(timer);document.removeEventListener('visibilitychange',vis);probe.run?.items?.forEach(i=>{if(i.status==='running')i.status='pending';});probe.ctl=null;probe.tEnd=performance.now();secrets.fill('');c.key='';c.relayToken='';c.extra={};setBusy(null);renderProbe();}
 }
 function stopProbe(){probe.ctl?.abort();}
 function downloadReport(){if(probe.run)download(`rofai-probe-${slug(probe.meta?.model)}-${stamp()}.json`,JSON.stringify(cleanReport({tool:'ROF AI',probeVersion:ROF_PROBE.version,requestedModel:probe.meta?.model,report:probe.run}),null,2),'application/json');}
-function downloadProbeLog(){if(probe.log)download(`rofai-probelog-${slug(probe.meta?.model)}-${stamp()}.json`,JSON.stringify(probe.log),'application/json');}
+function downloadProbeLog(){if(probe.log)download(`rofai-probelog-${slug(probe.meta?.model)}-x${probe.log.rounds}-${stamp()}.json`,JSON.stringify(probe.log),'application/json');}
 const bzReason = i => i.reasonKey ? t('rp.k.' + i.reasonKey, i.reasonP || {}) : i.passReason;
 
 
